@@ -8,19 +8,43 @@
 </head>
 <body>
   
+  <!-- Menú lateral de configuración -->
   <div id="apiSidebar" class="sidebar">
     <div class="sidebar-header">
-      <h3>Acceso API</h3>
+      <h3>Configuraciones</h3>
       <button id="closeApiBtn" class="close-btn">✖</button>
     </div>
     <div class="sidebar-content">
-      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
-        Ingresa tu API Key personal de WarEra (Opcional).
-      </p>
-      <input type="password" id="apiKeyInput" placeholder="Tu API Key" />
-      <button id="saveKeyBtn" class="btn btn-secondary">Guardar Key</button>
+      <!-- Clave API -->
+      <div class="config-group">
+        <label for="apiKeyInput">Clave API (opcional):</label>
+        <input type="password" id="apiKeyInput" placeholder="Tu API Key" />
+        <button id="saveKeyBtn" class="btn btn-secondary">Guardar Key</button>
+      </div>
+
+      <hr>
+
+      <!-- Selector de vista -->
+      <div class="config-group">
+        <label>Vista de usuarios:</label>
+        <div class="toggle-view">
+          <label>
+            <input type="radio" name="vistaToggle" value="tabla" checked> Tabla
+          </label>
+          <label>
+            <input type="radio" name="vistaToggle" value="tarjeta"> Tarjetas
+          </label>
+          <label>
+            <input type="radio" name="vistaToggle" value="tarjeta-compacta"> Tarjetas compactas
+          </label>
+        </div>
+        <span style="font-size: 0.75rem; color: var(--text-secondary);">Se adapta automáticamente al dispositivo</span>
+      </div>
     </div>
   </div>
+
+  <!-- Overlay para oscurecer fondo -->
+  <div id="overlay" class="overlay"></div>
 
   <div class="app-container">
     <header class="header">
@@ -29,7 +53,7 @@
       </div>
       
       <div class="credentials-bar">
-        <button id="openApiBtn" class="icon-btn" title="Configurar API Key">🔑</button>
+        <button id="openApiBtn" class="icon-btn" title="Configuraciones">⚙️</button>
         <button id="refreshDataBtn" class="btn btn-primary">🔄 Actualizar Datos</button>
       </div>
     </header>
@@ -67,21 +91,8 @@
       </div>
     </section>
 
-    <main class="table-container">
-      <table class="control-table">
-        <thead>
-          <tr>
-            <th>Jugador</th>
-            <th>Estado</th>
-            <th style="width: 15%;">Vida</th>
-            <th style="width: 15%;">Hambre</th>
-            <th>Modo</th>
-          </tr>
-        </thead>
-        <tbody id="unitTableBody">
-          <!-- Se puebla dinámicamente desde JS -->
-        </tbody>
-      </table>
+    <main class="table-container" id="usersContainer">
+      <!-- Aquí se inyecta la tabla o las tarjetas según la vista -->
     </main>
   </div>
 
