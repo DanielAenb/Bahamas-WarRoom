@@ -14,10 +14,11 @@ let appState = {
   selectedUnit: 'Uchiha',
   selectedMode: 'WAR',
   smartSort: false,
+  ordenActual: 'alfabetico', // 'alfabetico' o 'estado'
   playersData: [],
   cachedData: { 'Uchiha': null, 'Akatsuki': null },
   lastFetchTime: { 'Uchiha': 0, 'Akatsuki': 0 },
-  vistaActual: 'tabla',      // 'tabla', 'tarjeta', 'tarjeta-compacta'
+  vistaActual: 'tabla',
   eleccionManual: false
 };
 
@@ -73,6 +74,16 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
       appState.selectedMode = e.target.dataset.mode;
+      renderUsers();
+    });
+  });
+
+  // Selector de orden
+  document.querySelectorAll('[data-order]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('[data-order]').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      appState.ordenActual = e.target.dataset.order;
       renderUsers();
     });
   });
@@ -139,7 +150,6 @@ function cerrarSidebar() {
 function determinarVistaAutomatica() {
   if (appState.eleccionManual) return;
   const esMovil = window.innerWidth <= 768;
-  // Puedes elegir aquí qué vista usar en móvil: 'tarjeta' o 'tarjeta-compacta'
   appState.vistaActual = esMovil ? 'tarjeta' : 'tabla';
   document.querySelector(`input[name="vistaToggle"][value="${appState.vistaActual}"]`).checked = true;
 }
@@ -180,8 +190,13 @@ async function fetchApiData(forceRefresh = false) {
 
     const formattedPlayers = usersResponses.map(res => {
       const user = res.result.data;
+      
+      // === CORRECCIÓN: usar currentBarValue para el actual y total para el máximo ===
       const healthVal = user.skills?.health?.currentBarValue || 0;
+      const healthMax = user.skills?.health?.total || 100;
       const hungerVal = user.skills?.hunger?.currentBarValue || 0;
+      const hungerMax = user.skills?.hunger?.total || 10;
+      
       const attackLevel = user.skills?.attack?.level || 0;
       const modo = attackLevel > 2 ? 'WAR' : 'ECO';
 
@@ -214,7 +229,9 @@ async function fetchApiData(forceRefresh = false) {
         name: user.username,
         avatarUrl: avatarStr,
         health: Math.floor(healthVal),
+        healthMax: Math.floor(healthMax),
         hunger: Math.floor(hungerVal),
+        hungerMax: Math.floor(hungerMax),
         pillStatus,
         pillEndTime,
         pillRemainingMs,
@@ -241,8 +258,13 @@ async function fetchApiData(forceRefresh = false) {
 function getFilteredAndSortedPlayers() {
   let list = [...appState.playersData];
 
+  // Aplicar filtro de modo (WAR/ECO/ALL)
+  if (appState.selectedMode !== 'ALL') {
+    list = list.filter(p => p.modo === appState.selectedMode);
+  }
+
+  // Si prioridad táctica está activa, solo mostrar BUFF y ordenar por urgencia
   if (appState.smartSort) {
-    // Prioridad Táctica: solo BUFF
     list = list.filter(p => p.pillStatus === 'BUFF');
     list.sort((a, b) => {
       if (a.isCombatReady !== b.isCombatReady) return b.isCombatReady - a.isCombatReady;
@@ -251,12 +273,54 @@ function getFilteredAndSortedPlayers() {
       const resourceB = b.health + (b.hunger * 10);
       return resourceB - resourceA;
     });
-  } else {
-    if (appState.selectedMode !== 'ALL') {
-      list = list.filter(p => p.modo === appState.selectedMode);
-    }
-    list.sort((a, b) => a.name.localeCompare(b.name));
+    return list;
   }
+
+  // Si no, aplicar el orden seleccionado
+  if (appState.ordenActual === 'alfabetico') {
+    list.sort((a, b) => a.name.localeCompare(b.name));
+  } else { // 'estado'
+    // Función para calcular prioridad de recursos (vida + hambre*10)
+    const resourceScore = (p) => p.health + (p.hunger * 10);
+
+    list.sort((a, b) => {
+      // 1. BUFF primero
+      if (a.pillStatus === 'BUFF' && b.pillStatus !== 'BUFF') return -1;
+      if (a.pillStatus !== 'BUFF' && b.pillStatus === 'BUFF') return 1;
+
+      // 2. STANDBY después
+      if (a.pillStatus === 'STANDBY' && b.pillStatus !== 'STANDBY') return -1;
+      if (a.pillStatus !== 'STANDBY' && b.pillStatus === 'STANDBY') return 1;
+
+      // 3. DEBUFF al final
+      if (a.pillStatus === 'DEBUFF' && b.pillStatus !== 'DEBUFF') return 1;
+      if (a.pillStatus !== 'DEBUFF' && b.pillStatus === 'DEBUFF') return -1;
+
+      // Dentro de BUFF: ordenar por urgencia (menor tiempo restante, mayor recursos)
+      if (a.pillStatus === 'BUFF') {
+        if (a.pillRemainingMs !== b.pillRemainingMs) {
+          return a.pillRemainingMs - b.pillRemainingMs; // menor tiempo primero
+        }
+        return resourceScore(b) - resourceScore(a);
+      }
+
+      // Dentro de STANDBY: ordenar por recursos (mayor primero) y luego alfabético
+      if (a.pillStatus === 'STANDBY') {
+        if (resourceScore(a) !== resourceScore(b)) {
+          return resourceScore(b) - resourceScore(a);
+        }
+        return a.name.localeCompare(b.name);
+      }
+
+      // Dentro de DEBUFF: ordenar por tiempo restante (mayor primero - los que van a salir pronto)
+      if (a.pillStatus === 'DEBUFF') {
+        return a.pillRemainingMs - b.pillRemainingMs; // ascendente: primero los que terminan antes
+      }
+
+      return 0;
+    });
+  }
+
   return list;
 }
 
@@ -271,11 +335,14 @@ function renderUsers() {
     renderTarjetas(players);
   } else if (vista === 'tarjeta-compacta') {
     renderTarjetasCompactas(players);
+  } else if (vista === 'tarjeta-compacta-v2') {
+    renderTarjetasCompactasV2(players);
   }
 
   actualizarTemporizadores();
 }
 
+// ===== RENDERIZADO: TABLA =====
 function renderTabla(players) {
   let html = `
     <table class="vista-tabla">
@@ -294,8 +361,8 @@ function renderTabla(players) {
   players.forEach((p, index) => {
     const statusHtml = getStatusHtml(p);
     const modoBadge = p.modo === 'WAR' ? `<span class="badge-mode badge-war">WAR</span>` : `<span class="badge-mode badge-eco">ECO</span>`;
-    const healthPercent = Math.min(100, p.health);
-    const hungerPercent = Math.min(100, (p.hunger / 10) * 100);
+    const healthPercent = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
+    const hungerPercent = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
     const rowClass = p.isCombatReady ? '' : 'out-of-combat';
 
     html += `
@@ -308,11 +375,11 @@ function renderTabla(players) {
         </td>
         <td>${statusHtml}</td>
         <td>
-          <div class="stat-text">${p.health} HP</div>
+          <div class="stat-text">${p.health} / ${p.healthMax} HP</div>
           <div class="progress-bg"><div class="progress-fill health-fill" style="width: ${healthPercent}%"></div></div>
         </td>
         <td>
-          <div class="stat-text">${p.hunger} / 10</div>
+          <div class="stat-text">${p.hunger} / ${p.hungerMax}</div>
           <div class="progress-bg"><div class="progress-fill hunger-fill" style="width: ${hungerPercent}%"></div></div>
         </td>
         <td>${modoBadge}</td>
@@ -324,28 +391,30 @@ function renderTabla(players) {
   usersContainer.innerHTML = html;
 }
 
+// ===== RENDERIZADO: TARJETAS NORMALES =====
 function renderTarjetas(players) {
   let html = `<div class="vista-tarjetas">`;
 
   players.forEach((p, index) => {
     const statusHtml = getStatusHtml(p);
     const modoBadge = p.modo === 'WAR' ? `<span class="badge-mode badge-war">WAR</span>` : `<span class="badge-mode badge-eco">ECO</span>`;
-    const healthPercent = Math.min(100, p.health);
-    const hungerPercent = Math.min(100, (p.hunger / 10) * 100);
+    const healthPercent = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
+    const hungerPercent = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
+    const estadoClass = p.pillStatus.toLowerCase();
 
     html += `
-      <div class="tarjeta-usuario" style="animation-delay: ${index * 0.05}s">
+      <div class="tarjeta-usuario ${estadoClass}" style="animation-delay: ${index * 0.05}s">
         <div class="player-info">
           <img src="${p.avatarUrl}" class="avatar" alt="Avatar" onerror="this.src='https://ui-avatars.com/api/?name=${p.name}&background=334155&color=fff'">
           <span class="player-name">${p.name}</span>
         </div>
         <div class="status-row">${statusHtml}</div>
         <div class="stat-row">
-          <span class="stat-text">Vida: ${p.health} HP</span>
+          <span class="stat-text">Vida: ${p.health} / ${p.healthMax} HP</span>
           <div class="progress-bg"><div class="progress-fill health-fill" style="width: ${healthPercent}%"></div></div>
         </div>
         <div class="stat-row">
-          <span class="stat-text">Hambre: ${p.hunger} / 10</span>
+          <span class="stat-text">Hambre: ${p.hunger} / ${p.hungerMax}</span>
           <div class="progress-bg"><div class="progress-fill hunger-fill" style="width: ${hungerPercent}%"></div></div>
         </div>
         <div>${modoBadge}</div>
@@ -357,28 +426,30 @@ function renderTarjetas(players) {
   usersContainer.innerHTML = html;
 }
 
+// ===== RENDERIZADO: TARJETAS COMPACTAS =====
 function renderTarjetasCompactas(players) {
   let html = `<div class="vista-tarjetas-compactas">`;
 
   players.forEach((p, index) => {
     const statusHtml = getStatusHtml(p);
     const modoBadge = p.modo === 'WAR' ? `<span class="badge-mode badge-war">WAR</span>` : `<span class="badge-mode badge-eco">ECO</span>`;
-    const healthPercent = Math.min(100, p.health);
-    const hungerPercent = Math.min(100, (p.hunger / 10) * 100);
+    const healthPercent = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
+    const hungerPercent = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
+    const estadoClass = p.pillStatus.toLowerCase();
 
     html += `
-      <div class="tarjeta-compacta" style="animation-delay: ${index * 0.05}s">
+      <div class="tarjeta-compacta ${estadoClass}" style="animation-delay: ${index * 0.05}s">
         <div class="player-info">
           <img src="${p.avatarUrl}" class="avatar" alt="Avatar" onerror="this.src='https://ui-avatars.com/api/?name=${p.name}&background=334155&color=fff'">
           <span class="player-name">${p.name}</span>
         </div>
         <div class="status-row">${statusHtml}</div>
         <div class="stat-row">
-          <span class="stat-text">Vida ${p.health}</span>
+          <span class="stat-text">Vida ${p.health} / ${p.healthMax}</span>
           <div class="progress-bg"><div class="progress-fill health-fill" style="width: ${healthPercent}%"></div></div>
         </div>
         <div class="stat-row">
-          <span class="stat-text">Hambre ${p.hunger}</span>
+          <span class="stat-text">Hambre ${p.hunger} / ${p.hungerMax}</span>
           <div class="progress-bg"><div class="progress-fill hunger-fill" style="width: ${hungerPercent}%"></div></div>
         </div>
         <div>${modoBadge}</div>
@@ -390,6 +461,42 @@ function renderTarjetasCompactas(players) {
   usersContainer.innerHTML = html;
 }
 
+// ===== RENDERIZADO: TARJETAS COMPACTAS V2 (2 columnas) =====
+function renderTarjetasCompactasV2(players) {
+  let html = `<div class="vista-tarjetas-compactas-v2">`;
+
+  players.forEach((p, index) => {
+    const statusHtml = getStatusHtml(p);
+    const modoBadge = p.modo === 'WAR' ? `<span class="badge-mode badge-war">WAR</span>` : `<span class="badge-mode badge-eco">ECO</span>`;
+    const healthPercent = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
+    const hungerPercent = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
+    const estadoClass = p.pillStatus.toLowerCase();
+
+    html += `
+      <div class="tarjeta-compacta-v2 ${estadoClass}" style="animation-delay: ${index * 0.05}s">
+        <div class="player-info">
+          <img src="${p.avatarUrl}" class="avatar" alt="Avatar" onerror="this.src='https://ui-avatars.com/api/?name=${p.name}&background=334155&color=fff'">
+          <span class="player-name">${p.name}</span>
+        </div>
+        <div class="status-row">${statusHtml}</div>
+        <div class="stat-row">
+          <span class="stat-text">Vida ${p.health} / ${p.healthMax}</span>
+          <div class="progress-bg"><div class="progress-fill health-fill" style="width: ${healthPercent}%"></div></div>
+        </div>
+        <div class="stat-row">
+          <span class="stat-text">Hambre ${p.hunger} / ${p.hungerMax}</span>
+          <div class="progress-bg"><div class="progress-fill hunger-fill" style="width: ${hungerPercent}%"></div></div>
+        </div>
+        <div>${modoBadge}</div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  usersContainer.innerHTML = html;
+}
+
+// ===== UTILIDADES: ESTADO Y TEMPORIZADORES =====
 function getStatusHtml(player) {
   if (player.pillStatus === 'BUFF') {
     return `<div class="timer-wrapper"><span class="status-dot dot-buff"></span> <span class="pill-badge buff">BUFF</span> <span class="timer-text" data-player-id="${player.id}">${formatTimer(player.pillRemainingMs)}</span></div>`;
@@ -400,7 +507,6 @@ function getStatusHtml(player) {
   }
 }
 
-// ===== ACTUALIZACIÓN DE TEMPORIZADORES =====
 function actualizarTemporizadores() {
   const timers = document.querySelectorAll('.timer-text');
   timers.forEach(el => {

@@ -140,21 +140,21 @@ hr {
 
 .toggle-view {
   display: flex;
-  gap: 1rem;
   flex-wrap: wrap;
+  gap: 0.8rem;
 }
 .toggle-view label {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.85rem;
+  gap: 0.4rem;
+  font-size: 0.9rem;
   color: var(--text-primary);
   cursor: pointer;
 }
 .toggle-view input[type="radio"] {
   accent-color: var(--accent-color);
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 
 /* ===== OVERLAY ===== */
@@ -187,7 +187,7 @@ hr {
 .controls-panel {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.5rem;
+  gap: 1rem 1.5rem;
   align-items: center;
   background-color: var(--bg-secondary);
   padding: 1rem 1.5rem;
@@ -195,8 +195,8 @@ hr {
   border: 1px solid var(--border-color);
 }
 
-.control-group { display: flex; align-items: center; gap: 0.5rem; }
-.control-group label { font-size: 0.85rem; color: var(--text-secondary); }
+.control-group { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.control-group label { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; }
 
 .segmented-control {
   display: flex;
@@ -214,6 +214,7 @@ hr {
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.3s ease;
+  white-space: nowrap;
 }
 .segmented-btn.active {
   background-color: var(--bg-card);
@@ -311,7 +312,7 @@ input:checked + .slider:before {
 }
 .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
 
-/* ===== CONTENEDOR DE USUARIOS (Tabla / Tarjetas) ===== */
+/* ===== CONTENEDOR DE USUARIOS ===== */
 #usersContainer {
   background-color: var(--bg-secondary);
   border-radius: 8px;
@@ -354,7 +355,6 @@ input:checked + .slider:before {
   align-items: center;
   gap: 8px;
 }
-
 .vista-tabla .avatar {
   width: 28px;
   height: 28px;
@@ -364,20 +364,18 @@ input:checked + .slider:before {
   background-color: var(--bg-primary);
   flex-shrink: 0;
 }
-
 .vista-tabla .player-info strong {
   line-height: 1.2;
   font-size: 0.9rem;
 }
 
-/* --- VISTA TARJETAS NORMALES --- */
+/* --- VISTA TARJETAS (normal) --- */
 .vista-tarjetas {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
   padding: 1.5rem;
 }
-
 .tarjeta-usuario {
   background-color: var(--bg-card);
   border-radius: 8px;
@@ -391,7 +389,6 @@ input:checked + .slider:before {
 .tarjeta-usuario:hover {
   transform: translateY(-2px);
 }
-
 .tarjeta-usuario .player-info {
   display: flex;
   align-items: center;
@@ -403,13 +400,13 @@ input:checked + .slider:before {
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--bg-primary);
+  background-color: var(--bg-primary);
   flex-shrink: 0;
 }
 .tarjeta-usuario .player-name {
   font-size: 1rem;
   font-weight: bold;
 }
-
 .tarjeta-usuario .status-row {
   display: flex;
   align-items: center;
@@ -437,6 +434,26 @@ input:checked + .slider:before {
   border-radius: 4px;
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
+.health-fill { background-color: #1E4D2F; }
+.hunger-fill { background-color: #7B3128; }
+
+.tarjeta-usuario .badge-mode {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+.badge-war {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+.badge-eco {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
 
 /* --- VISTA TARJETAS COMPACTAS --- */
 .vista-tarjetas-compactas {
@@ -445,7 +462,6 @@ input:checked + .slider:before {
   gap: 0.8rem;
   padding: 1rem;
 }
-
 .tarjeta-compacta {
   background-color: var(--bg-card);
   border-radius: 6px;
@@ -456,7 +472,6 @@ input:checked + .slider:before {
   gap: 0.3rem;
   font-size: 0.8rem;
 }
-
 .tarjeta-compacta .player-info {
   display: flex;
   align-items: center;
@@ -501,29 +516,121 @@ input:checked + .slider:before {
   border-radius: 3px;
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
-/* Badges y estados (reutilizados) */
-.badge-mode {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
+.tarjeta-compacta .badge-mode {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.65rem;
   font-weight: bold;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
-.badge-war {
+.tarjeta-compacta .badge-war {
   background-color: rgba(239, 68, 68, 0.2);
   color: #fca5a5;
   border: 1px solid rgba(239, 68, 68, 0.4);
 }
-.badge-eco {
+.tarjeta-compacta .badge-eco {
   background-color: rgba(34, 197, 94, 0.2);
   color: #86efac;
   border: 1px solid rgba(34, 197, 94, 0.4);
 }
 
-.health-fill { background-color: #1E4D2F; }
-.hunger-fill { background-color: #7B3128; }
+/* --- VISTA TARJETAS COMPACTAS V2 (2 columnas fijas) --- */
+.vista-tarjetas-compactas-v2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+  padding: 1rem;
+}
+.tarjeta-compacta-v2 {
+  background-color: var(--bg-card);
+  border-radius: 6px;
+  padding: 0.8rem 1rem;
+  border-left: 3px solid var(--accent-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+.tarjeta-compacta-v2 .player-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tarjeta-compacta-v2 .avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--bg-primary);
+  flex-shrink: 0;
+}
+.tarjeta-compacta-v2 .player-name {
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+.tarjeta-compacta-v2 .status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.tarjeta-compacta-v2 .stat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.tarjeta-compacta-v2 .stat-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.tarjeta-compacta-v2 .progress-bg {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  height: 5px;
+  width: 100%;
+  overflow: hidden;
+}
+.tarjeta-compacta-v2 .progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tarjeta-compacta-v2 .badge-mode {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+}
+.tarjeta-compacta-v2 .badge-war {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+.tarjeta-compacta-v2 .badge-eco {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
 
+/* Colores dinámicos para el borde izquierdo según estado */
+.tarjeta-usuario.buff,
+.tarjeta-compacta.buff,
+.tarjeta-compacta-v2.buff {
+  border-left-color: var(--status-buff);
+}
+.tarjeta-usuario.debuff,
+.tarjeta-compacta.debuff,
+.tarjeta-compacta-v2.debuff {
+  border-left-color: var(--status-debuff);
+}
+.tarjeta-usuario.standby,
+.tarjeta-compacta.standby,
+.tarjeta-compacta-v2.standby {
+  border-left-color: var(--status-standby);
+}
+
+/* Estados y temporizadores (reutilizados) */
 .status-dot {
   display: inline-block;
   width: 10px;
@@ -586,7 +693,8 @@ input:checked + .slider:before {
 }
 .vista-tabla tbody tr,
 .tarjeta-usuario,
-.tarjeta-compacta {
+.tarjeta-compacta,
+.tarjeta-compacta-v2 {
   opacity: 0;
   animation: fadeInSlide 0.3s ease-out forwards;
 }
@@ -644,6 +752,7 @@ input:checked + .slider:before {
   .sidebar.open {
     right: 0;
   }
+  /* Ajustes tabla móvil */
   .vista-tabla th,
   .vista-tabla td {
     padding: 0.75rem 0.6rem;
@@ -656,13 +765,8 @@ input:checked + .slider:before {
   .player-info {
     gap: 6px;
   }
-  .vista-tarjetas {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .vista-tarjetas-compactas {
+  /* Compactas v2 en móvil: 1 columna */
+  .vista-tarjetas-compactas-v2 {
     grid-template-columns: 1fr;
   }
 }

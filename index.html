@@ -35,7 +35,10 @@
             <input type="radio" name="vistaToggle" value="tarjeta"> Tarjetas
           </label>
           <label>
-            <input type="radio" name="vistaToggle" value="tarjeta-compacta"> Tarjetas compactas
+            <input type="radio" name="vistaToggle" value="tarjeta-compacta"> Compactas
+          </label>
+          <label>
+            <input type="radio" name="vistaToggle" value="tarjeta-compacta-v2"> Compactas v2
           </label>
         </div>
         <span style="font-size: 0.75rem; color: var(--text-secondary);">Se adapta automáticamente al dispositivo</span>
@@ -43,7 +46,7 @@
     </div>
   </div>
 
-  <!-- Overlay para oscurecer fondo -->
+  <!-- Overlay -->
   <div id="overlay" class="overlay"></div>
 
   <div class="app-container">
@@ -51,7 +54,6 @@
       <div class="brand">
         <h1>BAHAMAS <span>WARROOM</span></h1>
       </div>
-      
       <div class="credentials-bar">
         <button id="openApiBtn" class="icon-btn" title="Configuraciones">⚙️</button>
         <button id="refreshDataBtn" class="btn btn-primary">🔄 Actualizar Datos</button>
@@ -78,6 +80,15 @@
         </div>
       </div>
 
+      <!-- NUEVO: Selector de Orden -->
+      <div class="control-group">
+        <label>Ordenar por:</label>
+        <div class="segmented-control">
+          <button class="segmented-btn active" data-order="alfabetico">Alfabético</button>
+          <button class="segmented-btn" data-order="estado">Por Estado</button>
+        </div>
+      </div>
+
       <!-- Prioridad Táctica (Switch) -->
       <div class="control-group tactical-group">
         <span class="toggle-label">🚨 Prioridad Táctica</span>
@@ -92,7 +103,7 @@
     </section>
 
     <main class="table-container" id="usersContainer">
-      <!-- Aquí se inyecta la tabla o las tarjetas según la vista -->
+      <!-- Aquí se inyecta la tabla o las tarjetas -->
     </main>
   </div>
 
