@@ -122,19 +122,19 @@ body {
 .segmented-btn {
   background: none; border: none; color: var(--text-secondary);
   padding: 0.4rem 0.8rem; font-size: 0.85rem; cursor: pointer; border-radius: 4px;
-  transition: all 0.3s ease; /* Animación para los botones */
+  transition: all 0.3s ease;
 }
 .segmented-btn.active {
   background-color: var(--bg-card); color: var(--text-primary); font-weight: bold;
 }
 
-/* 🚨 Modo Táctico y Botón Deslizante (Switch) 🚨 */
+/* 🚨 Prioridad Táctica y Botón Deslizante (Switch) 🚨 */
 .tactical-group {
   background: rgba(239, 68, 68, 0.05);
   padding: 0.4rem 0.8rem;
   border-radius: 8px;
   border: 1px solid rgba(239, 68, 68, 0.2);
-  margin-left: auto; /* Empuja a la derecha si hay espacio */
+  margin-left: auto;
 }
 
 .toggle-label {
@@ -162,18 +162,19 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
   color: var(--text-primary); font-size: 10px; font-weight: bold; cursor: help; margin-left: 4px;
 }
 .tooltip .tooltiptext {
-  visibility: hidden; width: 240px; background-color: var(--bg-primary); color: var(--text-primary);
+  visibility: hidden; width: 220px; background-color: var(--bg-primary); color: var(--text-primary);
   text-align: center; border-radius: 6px; padding: 8px 12px; position: absolute;
-  z-index: 10; bottom: 135%; left: 50%; margin-left: -120px; opacity: 0; transition: opacity 0.3s;
-  border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-weight: normal; font-size: 0.8rem;
+  z-index: 10; bottom: 135%; left: 50%; margin-left: -110px; opacity: 0; transition: opacity 0.3s;
+  border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-weight: normal; font-size: 0.75rem;
 }
 .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
 
 /* Table Design */
 .table-container {
   background-color: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
-.control-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+.control-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; min-width: 600px; }
 .control-table th, .control-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
 .control-table th { background-color: rgba(0, 0, 0, 0.2); color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
 .control-table tr:hover { background-color: rgba(255, 255, 255, 0.03); }
@@ -193,7 +194,7 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
 .player-info { display: flex; align-items: center; gap: 12px; }
 .avatar {
   width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
-  border: 2px solid var(--bg-card); background-color: var(--bg-primary);
+  border: 2px solid var(--bg-card); background-color: var(--bg-primary); flex-shrink: 0;
 }
 
 /* Progress Bars */
@@ -204,7 +205,7 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
 .hunger-fill { background-color: #7B3128; }
 
 /* Badges & Dots */
-.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
 .dot-buff { background-color: var(--status-buff); box-shadow: 0 0 8px var(--status-buff); }
 .dot-debuff { background-color: var(--status-debuff); box-shadow: 0 0 8px var(--status-debuff); }
 .dot-standby { background-color: var(--status-standby); }
@@ -212,8 +213,90 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
 .pill-badge.buff { background-color: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
 .pill-badge.debuff { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
 .pill-badge.standby { background-color: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.4); }
-.timer-wrapper { display: flex; align-items: center; }
-.timer-text { font-family: monospace; font-weight: bold; }
+.timer-wrapper { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.timer-text { font-family: monospace; font-weight: bold; font-size: 0.85rem; }
 .badge-mode { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; letter-spacing: 0.5px; }
 .badge-war { background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
 .badge-eco { background-color: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.4); }
+
+/* ========================================== */
+/* RESPONSIVE DESIGN (MÓVILES Y TABLETS)       */
+/* ========================================== */
+@media (max-width: 768px) {
+  body {
+    padding: 0.75rem;
+  }
+
+  .app-container {
+    gap: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .credentials-bar {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .controls-panel {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .control-group {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .segmented-control {
+    width: 100%;
+    display: flex;
+  }
+
+  .segmented-btn {
+    flex: 1;
+    text-align: center;
+    padding: 0.5rem;
+  }
+
+  .tactical-group {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .sidebar {
+    width: 100%;
+    right: -100%;
+  }
+  
+  .sidebar.open {
+    right: 0;
+  }
+
+  /* Ajuste de celdas para evitar saltos bruscos en móviles */
+  .control-table th, .control-table td {
+    padding: 0.75rem 0.6rem;
+    font-size: 0.82rem;
+  }
+
+  .avatar {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .player-info {
+    gap: 8px;
+  }
+}
