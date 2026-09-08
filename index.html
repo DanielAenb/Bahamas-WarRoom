@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bahamas WarRoom</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  
+  <div id="apiSidebar" class="sidebar">
+    <div class="sidebar-header">
+      <h3>Acceso API</h3>
+      <button id="closeApiBtn" class="close-btn">✖</button>
+    </div>
+    <div class="sidebar-content">
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+        Ingresa tu API Key personal de WarEra (Opcional).
+      </p>
+      <input type="password" id="apiKeyInput" placeholder="Tu API Key" />
+      <button id="saveKeyBtn" class="btn btn-secondary">Guardar Key</button>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <header class="header">
+      <div class="brand">
+        <h1>BAHAMAS <span>WARROOM</span></h1>
+      </div>
+      
+      <div class="credentials-bar">
+        <button id="openApiBtn" class="icon-btn" title="Configurar API Key">🔑</button>
+        <button id="refreshDataBtn" class="btn btn-primary">🔄 Actualizar Datos</button>
+      </div>
+    </header>
+
+    <section class="controls-panel">
+      <!-- Selector de Clan -->
+      <div class="control-group">
+        <label>Unidad Militar:</label>
+        <div class="segmented-control">
+          <button class="segmented-btn active" data-unit="Uchiha">Clan Uchiha</button>
+          <button class="segmented-btn" data-unit="Akatsuki">Clan Akatsuki</button>
+        </div>
+      </div>
+
+      <!-- Selector de Modo/Perfil -->
+      <div class="control-group">
+        <label>Filtrar por Modo:</label>
+        <div class="segmented-control">
+          <button class="segmented-btn active" data-mode="WAR">Modo WAR</button>
+          <button class="segmented-btn" data-mode="ECO">Modo ECO</button>
+          <button class="segmented-btn" data-mode="ALL">Ver Todo</button>
+        </div>
+      </div>
+
+      <!-- Prioridad Táctica (Switch) -->
+      <div class="control-group tactical-group">
+        <span class="toggle-label">🚨 Prioridad Táctica</span>
+        <div class="tooltip">?
+          <span class="tooltiptext">Muestra SOLO usuarios con BUFF. Ordenados por urgencia de tiempo de buff, vida y hambre.</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="smartSortToggle">
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </section>
+
+    <main class="table-container">
+      <table class="control-table">
+        <thead>
+          <tr>
+            <th>Jugador</th>
+            <th>Estado</th>
+            <th style="width: 15%;">Vida</th>
+            <th style="width: 15%;">Hambre</th>
+            <th>Modo</th>
+          </tr>
+        </thead>
+        <tbody id="unitTableBody">
+          <!-- Se puebla dinámicamente desde JS -->
+        </tbody>
+      </table>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

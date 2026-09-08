@@ -1,0 +1,219 @@
+:root {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --accent-color: #38bdf8;
+  
+  --status-buff: #22c55e;
+  --status-debuff: #ef4444;
+  --status-standby: #64748b;
+
+  --border-color: #475569;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  padding: 1.5rem;
+  overflow-x: hidden;
+}
+
+.app-container {
+  max-width: 1300px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-secondary);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.brand h1 {
+  font-size: 1.25rem;
+  letter-spacing: 1px;
+}
+.brand span { color: var(--accent-color); }
+
+.credentials-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.icon-btn:hover { transform: scale(1.1); }
+
+/* Sidebar Modal */
+.sidebar {
+  position: fixed;
+  top: 0;
+  right: -320px;
+  width: 320px;
+  height: 100vh;
+  background-color: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  transition: right 0.3s ease-in-out;
+  z-index: 1000;
+  padding: 1.5rem;
+  box-shadow: -4px 0 15px rgba(0,0,0,0.5);
+}
+.sidebar.open { right: 0; }
+.sidebar-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;
+}
+.close-btn { background: none; border: none; color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; }
+.close-btn:hover { color: var(--text-primary); }
+.sidebar-content input {
+  width: 100%; margin-bottom: 1rem; padding: 0.75rem; border-radius: 4px;
+  border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);
+}
+.sidebar-content .btn { width: 100%; }
+
+/* Buttons */
+.btn {
+  padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer;
+  font-weight: 600; transition: all 0.2s;
+}
+.btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.btn-primary { background-color: var(--accent-color); color: #000; }
+.btn-secondary { background-color: var(--bg-card); color: var(--text-primary); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Controls Panel */
+.controls-panel {
+  display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center;
+  background-color: var(--bg-secondary); padding: 1rem 1.5rem;
+  border-radius: 8px; border: 1px solid var(--border-color);
+}
+
+.control-group { display: flex; align-items: center; gap: 0.5rem; }
+.control-group label { font-size: 0.85rem; color: var(--text-secondary); }
+
+/* Segmented Buttons */
+.segmented-control {
+  display: flex; background-color: var(--bg-primary); padding: 3px;
+  border-radius: 6px; border: 1px solid var(--border-color);
+}
+.segmented-btn {
+  background: none; border: none; color: var(--text-secondary);
+  padding: 0.4rem 0.8rem; font-size: 0.85rem; cursor: pointer; border-radius: 4px;
+  transition: all 0.3s ease; /* Animación para los botones */
+}
+.segmented-btn.active {
+  background-color: var(--bg-card); color: var(--text-primary); font-weight: bold;
+}
+
+/* 🚨 Modo Táctico y Botón Deslizante (Switch) 🚨 */
+.tactical-group {
+  background: rgba(239, 68, 68, 0.05);
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  margin-left: auto; /* Empuja a la derecha si hay espacio */
+}
+
+.toggle-label {
+  font-size: 0.85rem; color: #f87171; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.switch {
+  position: relative; display: inline-block; width: 44px; height: 22px; margin-left: 8px;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--bg-card); transition: .4s; border-radius: 34px; border: 1px solid var(--border-color);
+}
+.slider:before {
+  position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px;
+  background-color: var(--text-secondary); transition: .4s; border-radius: 50%;
+}
+input:checked + .slider { background-color: #ef4444; border-color: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
+input:checked + .slider:before { transform: translateX(22px); background-color: #fff; }
+
+.tooltip {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; background: var(--border-color);
+  color: var(--text-primary); font-size: 10px; font-weight: bold; cursor: help; margin-left: 4px;
+}
+.tooltip .tooltiptext {
+  visibility: hidden; width: 240px; background-color: var(--bg-primary); color: var(--text-primary);
+  text-align: center; border-radius: 6px; padding: 8px 12px; position: absolute;
+  z-index: 10; bottom: 135%; left: 50%; margin-left: -120px; opacity: 0; transition: opacity 0.3s;
+  border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-weight: normal; font-size: 0.8rem;
+}
+.tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+
+/* Table Design */
+.table-container {
+  background-color: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto;
+}
+.control-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+.control-table th, .control-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+.control-table th { background-color: rgba(0, 0, 0, 0.2); color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+.control-table tr:hover { background-color: rgba(255, 255, 255, 0.03); }
+.control-table tr.out-of-combat { opacity: 0.45; }
+
+/* 🌟 Animación de Filas (Cascada) 🌟 */
+@keyframes fadeInSlide {
+  0% { opacity: 0; transform: translateY(15px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.control-table tbody tr {
+  opacity: 0;
+  animation: fadeInSlide 0.3s ease-out forwards;
+}
+
+/* Perfil (Avatar + Nombre) */
+.player-info { display: flex; align-items: center; gap: 12px; }
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
+  border: 2px solid var(--bg-card); background-color: var(--bg-primary);
+}
+
+/* Progress Bars */
+.stat-text { font-size: 0.85rem; margin-bottom: 4px; font-weight: 500; }
+.progress-bg { background: rgba(255, 255, 255, 0.1); border-radius: 4px; height: 8px; width: 100%; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+.health-fill { background-color: #1E4D2F; }
+.hunger-fill { background-color: #7B3128; }
+
+/* Badges & Dots */
+.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.dot-buff { background-color: var(--status-buff); box-shadow: 0 0 8px var(--status-buff); }
+.dot-debuff { background-color: var(--status-debuff); box-shadow: 0 0 8px var(--status-debuff); }
+.dot-standby { background-color: var(--status-standby); }
+.pill-badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 8px; }
+.pill-badge.buff { background-color: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+.pill-badge.debuff { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+.pill-badge.standby { background-color: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.4); }
+.timer-wrapper { display: flex; align-items: center; }
+.timer-text { font-family: monospace; font-weight: bold; }
+.badge-mode { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; letter-spacing: 0.5px; }
+.badge-war { background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
+.badge-eco { background-color: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.4); }
