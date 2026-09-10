@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  
+
   <!-- Menú lateral de configuración -->
   <div id="apiSidebar" class="sidebar">
     <div class="sidebar-header">
@@ -34,12 +34,6 @@
           <label>
             <input type="radio" name="vistaToggle" value="tarjeta"> Tarjetas
           </label>
-          <label>
-            <input type="radio" name="vistaToggle" value="tarjeta-compacta"> Compactas
-          </label>
-          <label>
-            <input type="radio" name="vistaToggle" value="tarjeta-compacta-v2"> Compactas v2
-          </label>
         </div>
         <span style="font-size: 0.75rem; color: var(--text-secondary);">Se adapta automáticamente al dispositivo</span>
       </div>
@@ -53,6 +47,7 @@
     <header class="header">
       <div class="brand">
         <h1>BAHAMAS <span>WARROOM</span></h1>
+         <span id="freshnessDot" class="freshness-dot"></span>
       </div>
       <div class="credentials-bar">
         <button id="openApiBtn" class="icon-btn" title="Configuraciones">⚙️</button>
@@ -80,7 +75,7 @@
         </div>
       </div>
 
-      <!-- NUEVO: Selector de Orden -->
+      <!-- Selector de Orden -->
       <div class="control-group">
         <label>Ordenar por:</label>
         <div class="segmented-control">
@@ -105,6 +100,12 @@
     <main class="table-container" id="usersContainer">
       <!-- Aquí se inyecta la tabla o las tarjetas -->
     </main>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast">
+    <span id="toastMessage">Datos estratégicos cargados</span>
+    <div id="toastBar" class="toast-bar" style="width:100%"></div>
   </div>
 
   <script src="app.js"></script>
