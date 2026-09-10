@@ -3,23 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="only dark">
   <title>Bahamas WarRoom</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
   <!-- Menú lateral de configuración -->
-  <div id="apiSidebar" class="sidebar">
+  <div id="apiSidebar" class="sidebar" role="dialog" aria-label="Configuraciones">
     <div class="sidebar-header">
       <h3>Configuraciones</h3>
-      <button id="closeApiBtn" class="close-btn">✖</button>
+      <button id="closeApiBtn" class="close-btn" aria-label="Cerrar configuraciones">✖</button>
     </div>
     <div class="sidebar-content">
-      <!-- Clave API -->
+
+      <!-- Clave API personal (opcional) -->
       <div class="config-group">
-        <label for="apiKeyInput">Clave API (opcional):</label>
-        <input type="password" id="apiKeyInput" placeholder="Tu API Key" />
-        <button id="saveKeyBtn" class="btn btn-secondary">Guardar Key</button>
+        <label for="apiKeyInput">Clave API personal (opcional):</label>
+        <input type="password" id="apiKeyInput" placeholder="Pega aquí tu key" autocomplete="off" />
+        <div class="api-key-actions">
+          <button id="saveKeyBtn" class="btn btn-secondary">Guardar</button>
+          <button id="clearKeyBtn" class="btn btn-secondary">Borrar</button>
+        </div>
+        <span class="config-hint">
+          Se guarda solo en este dispositivo. Sin key se usa la API pública.
+        </span>
       </div>
 
       <hr>
@@ -27,16 +35,16 @@
       <!-- Selector de vista -->
       <div class="config-group">
         <label>Vista de usuarios:</label>
-        <div class="toggle-view">
-          <label>
-            <input type="radio" name="vistaToggle" value="tabla" checked> Tabla
-          </label>
-          <label>
-            <input type="radio" name="vistaToggle" value="tarjeta"> Tarjetas
-          </label>
+        <div class="segmented-control">
+          <button class="segmented-btn active" data-vista="tabla">Tabla</button>
+          <button class="segmented-btn" data-vista="tarjeta">Tarjetas</button>
+          <button class="segmented-btn" data-vista="compacta">Compacta</button>
         </div>
-        <span style="font-size: 0.75rem; color: var(--text-secondary);">Se adapta automáticamente al dispositivo</span>
+        <span class="config-hint">
+          Compacta muestra más jugadores por pantalla (ideal en móvil).
+        </span>
       </div>
+
     </div>
   </div>
 
@@ -47,11 +55,13 @@
     <header class="header">
       <div class="brand">
         <h1>BAHAMAS <span>WARROOM</span></h1>
-         <span id="freshnessDot" class="freshness-dot"></span>
       </div>
       <div class="credentials-bar">
-        <button id="openApiBtn" class="icon-btn" title="Configuraciones">⚙️</button>
-        <button id="refreshDataBtn" class="btn btn-primary">🔄 Actualizar Datos</button>
+        <button id="openApiBtn" class="icon-btn" title="Configuraciones" aria-label="Abrir configuraciones">⚙️</button>
+        <div class="refresh-group">
+          <span id="freshnessDot" class="freshness-dot" title="Sin datos" aria-label="Estado de frescura"></span>
+          <button id="refreshDataBtn" class="btn btn-primary">🔄 Actualizar Datos</button>
+        </div>
       </div>
     </header>
 
@@ -65,7 +75,7 @@
         </div>
       </div>
 
-      <!-- Selector de Modo/Perfil -->
+      <!-- Selector de Modo -->
       <div class="control-group">
         <label>Filtrar por Modo:</label>
         <div class="segmented-control">
@@ -84,11 +94,14 @@
         </div>
       </div>
 
-      <!-- Prioridad Táctica (Switch) -->
+      <!-- Prioridad Táctica -->
       <div class="control-group tactical-group">
         <span class="toggle-label">🚨 Prioridad Táctica</span>
-        <div class="tooltip">?
-          <span class="tooltiptext">Muestra SOLO usuarios con BUFF. Ordenados por urgencia de tiempo de buff, vida y hambre.</span>
+        <div class="tooltip" tabindex="0" role="button"
+             aria-label="Información sobre prioridad táctica">?
+          <span class="tooltiptext">
+            Muestra SOLO usuarios con BUFF. Ordenados por urgencia de tiempo de buff, vida y hambre.
+          </span>
         </div>
         <label class="switch">
           <input type="checkbox" id="smartSortToggle">
@@ -98,16 +111,17 @@
     </section>
 
     <main class="table-container" id="usersContainer">
-      <!-- Aquí se inyecta la tabla o las tarjetas -->
+      <!-- Aquí se inyecta la tabla, las tarjetas o el estado vacío -->
     </main>
   </div>
 
-  <!-- Toast notification -->
-  <div id="toast" class="toast">
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite">
     <span id="toastMessage">Datos estratégicos cargados</span>
     <div id="toastBar" class="toast-bar" style="width:100%"></div>
   </div>
 
+  <script src="warera-api.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

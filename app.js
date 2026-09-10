@@ -1,52 +1,74 @@
 /**
- * Bahamas WarRoom - Script Principal
+ * Bahamas WarRoom — Script principal.
+ * Depende de warera-api.js (window.WareraAPI).
  */
 
 const CONFIG = {
   UNIT_UCHIHA_ID: "6997581b896745b3e1b21d0f",
   UNIT_AKATSUKI_ID: "69f542668d7015d064d4147a",
-  CACHE_TTL_MS: 2 * 60 * 1000, // 5 minutos
-  CACHE_STORAGE_KEY: 'warera_cache_v1'
+  CACHE_TTL_MS: 2 * 60 * 1000,           // 2 minutos
+  CACHE_STORAGE_KEY: 'warera_cache_v2',
+  CACHE_VERSION: 2,
+  REFRESH_BTN_IDLE: '🔄 Actualizar Datos',
+  REFRESH_BTN_LOADING: '⏳ Cargando...',
+  FRESHNESS_REFRESH_EVERY_N_TICKS: 5     // Actualizar el dot cada 5 s
 };
 
+const UNITS = ['Uchiha', 'Akatsuki'];
+
 // ===== ESTADO GLOBAL =====
-let appState = {
-  apiKey: localStorage.getItem('warera_api_key') || '',
+const appState = {
   selectedUnit: 'Uchiha',
   selectedMode: 'WAR',
   smartSort: false,
   ordenActual: 'alfabetico',
   playersData: [],
-  cachedData: { 'Uchiha': null, 'Akatsuki': null },
-  lastFetchTime: { 'Uchiha': 0, 'Akatsuki': 0 },
+  playersById: new Map(),
+  cachedData: { Uchiha: null, Akatsuki: null },
+  lastFetchTime: { Uchiha: 0, Akatsuki: 0 },
   vistaActual: 'tabla',
   eleccionManual: false
 };
 
 // ===== DOM REFS =====
-const sidebar = document.getElementById('apiSidebar');
-const overlay = document.getElementById('overlay');
-const openApiBtn = document.getElementById('openApiBtn');
-const closeApiBtn = document.getElementById('closeApiBtn');
-const apiKeyInput = document.getElementById('apiKeyInput');
-const saveKeyBtn = document.getElementById('saveKeyBtn');
-const refreshBtn = document.getElementById('refreshDataBtn');
+const sidebar         = document.getElementById('apiSidebar');
+const overlay         = document.getElementById('overlay');
+const openApiBtn      = document.getElementById('openApiBtn');
+const closeApiBtn     = document.getElementById('closeApiBtn');
+const apiKeyInput     = document.getElementById('apiKeyInput');
+const saveKeyBtn      = document.getElementById('saveKeyBtn');
+const clearKeyBtn     = document.getElementById('clearKeyBtn');
+const refreshBtn      = document.getElementById('refreshDataBtn');
 const smartSortToggle = document.getElementById('smartSortToggle');
-const usersContainer = document.getElementById('usersContainer');
-const radioVista = document.getElementsByName('vistaToggle');
-const toast = document.getElementById('toast');
-const toastMessage = document.getElementById('toastMessage');
-const toastBar = document.getElementById('toastBar');
+const usersContainer  = document.getElementById('usersContainer');
+const toast           = document.getElementById('toast');
+const toastMessage    = document.getElementById('toastMessage');
+const toastBar        = document.getElementById('toastBar');
+const freshnessDot    = document.getElementById('freshnessDot');
+
+// ===== INTERVALOS Y CONTADORES =====
+let refreshIntervalId  = null;
+let timerLoopId        = null;
+let freshnessTickCount = 0;
+let pendingFetches     = 0;
 
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', () => {
-  if (appState.apiKey) {
-    apiKeyInput.value = appState.apiKey;
-  }
-
-  // Cargar caché persistente ANTES de cualquier fetch
   loadCacheFromStorage();
+  bindUiEvents();
+  restoreViewPreference();
+  primerRender();
 
+  // Fetch inicial de ambas unidades (usa caché si está vigente).
+  refreshAllUnits(false, false);
+
+  updateFreshnessIndicator();
+  startTimerLoop();
+  refreshIntervalId = setInterval(() => refreshAllUnits(true, true), CONFIG.CACHE_TTL_MS);
+});
+
+function bindUiEvents() {
+  // --- Sidebar ---
   openApiBtn.addEventListener('click', () => {
     sidebar.classList.add('open');
     overlay.classList.add('active');
@@ -54,65 +76,93 @@ document.addEventListener('DOMContentLoaded', () => {
   closeApiBtn.addEventListener('click', cerrarSidebar);
   overlay.addEventListener('click', cerrarSidebar);
 
-  saveKeyBtn.addEventListener('click', () => {
-    const key = apiKeyInput.value.trim();
-    localStorage.setItem('warera_api_key', key);
-    appState.apiKey = key;
-    mostrarNotificacion('API Key guardada localmente.', 2000, 'success');
-    cerrarSidebar();
+  // --- API Key ---
+  if (apiKeyInput) apiKeyInput.value = localStorage.getItem('warera_api_key') || '';
+
+  if (saveKeyBtn) {
+    saveKeyBtn.addEventListener('click', () => {
+      const key = apiKeyInput.value.trim();
+      if (key) {
+        localStorage.setItem('warera_api_key', key);
+        mostrarNotificacion('API Key guardada. Reconsultando…', 1500, 'success');
+      } else {
+        localStorage.removeItem('warera_api_key');
+        mostrarNotificacion('Sin key: usando API pública.', 1500, 'success');
+      }
+      refreshAllUnits(true, false);
+      cerrarSidebar();
+    });
+  }
+
+  if (clearKeyBtn) {
+    clearKeyBtn.addEventListener('click', () => {
+      localStorage.removeItem('warera_api_key');
+      if (apiKeyInput) apiKeyInput.value = '';
+      mostrarNotificacion('API Key borrada.', 1500, 'success');
+      refreshAllUnits(true, false);
+    });
+  }
+
+  // --- Selector de vista (dentro del sidebar) ---
+  document.querySelectorAll('[data-vista]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('[data-vista]').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      appState.vistaActual  = e.currentTarget.dataset.vista;
+      appState.eleccionManual = true;
+      localStorage.setItem('vistaPreferida', appState.vistaActual);
+      renderUsers();
+      cerrarSidebar();
+    });
   });
 
+  // --- Selector de unidad ---
   document.querySelectorAll('[data-unit]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('[data-unit]').forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      appState.selectedUnit = e.target.dataset.unit;
+      e.currentTarget.classList.add('active');
+      appState.selectedUnit = e.currentTarget.dataset.unit;
 
-      // Si hay caché para la unidad, mostrar inmediatamente
       if (appState.cachedData[appState.selectedUnit]) {
         appState.playersData = appState.cachedData[appState.selectedUnit];
+        rebuildPlayerIndex();
         renderUsers();
+        updateFreshnessIndicator();
       }
-      fetchApiData();
+      fetchApiData(false, appState.selectedUnit, false);
     });
   });
 
+  // --- Selector de modo ---
   document.querySelectorAll('[data-mode]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      appState.selectedMode = e.target.dataset.mode;
+      e.currentTarget.classList.add('active');
+      appState.selectedMode = e.currentTarget.dataset.mode;
       renderUsers();
     });
   });
 
+  // --- Selector de orden ---
   document.querySelectorAll('[data-order]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('[data-order]').forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      appState.ordenActual = e.target.dataset.order;
+      e.currentTarget.classList.add('active');
+      appState.ordenActual = e.currentTarget.dataset.order;
       renderUsers();
     });
   });
 
+  // --- Prioridad táctica ---
   smartSortToggle.addEventListener('change', (e) => {
     appState.smartSort = e.target.checked;
     renderUsers();
   });
 
-  refreshBtn.addEventListener('click', () => {
-    fetchApiData(true);
-  });
+  // --- Refresco manual ---
+  refreshBtn.addEventListener('click', () => refreshAllUnits(true, false));
 
-  radioVista.forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      appState.vistaActual = e.target.value;
-      appState.eleccionManual = true;
-      renderUsers();
-      localStorage.setItem('vistaPreferida', appState.vistaActual);
-    });
-  });
-
+  // --- Resize ---
   let resizeTimeout;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
@@ -123,32 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }, 300);
   });
-
-  const vistaGuardada = localStorage.getItem('vistaPreferida');
-  if (vistaGuardada) {
-    appState.vistaActual = vistaGuardada;
-    appState.eleccionManual = true;
-    document.querySelector(`input[name="vistaToggle"][value="${vistaGuardada}"]`).checked = true;
-  } else {
-    determinarVistaAutomatica();
-  }
-
-  // Render inmediato si hay caché para la unidad activa
-  if (appState.cachedData[appState.selectedUnit]) {
-    appState.playersData = appState.cachedData[appState.selectedUnit];
-    renderUsers();
-  }
-
-  // Fetch inicial (usa caché si sigue vigente, silencioso)
-  fetchApiData();
-  updateFreshnessIndicator();
-  startTimerLoop();
-
-  // Refresco automático cada 2 minutos
-  setInterval(() => {
-    fetchApiData(true);
-  }, CONFIG.CACHE_TTL_MS);
-});
+}
 
 // ===== FUNCIONES AUXILIARES =====
 function cerrarSidebar() {
@@ -158,17 +183,48 @@ function cerrarSidebar() {
 
 function determinarVistaAutomatica() {
   if (appState.eleccionManual) return;
-  const esMovil = window.innerWidth <= 768;
-  appState.vistaActual = esMovil ? 'tarjeta' : 'tabla';
-  document.querySelector(`input[name="vistaToggle"][value="${appState.vistaActual}"]`).checked = true;
+  // Móviles: compacta (más densidad). Desktop: tabla.
+  appState.vistaActual = window.innerWidth <= 768 ? 'compacta' : 'tabla';
+  syncVistaButtons();
 }
 
-// ===== PERSISTENCIA DE CACHÉ EN LOCALSTORAGE =====
+function syncVistaButtons() {
+  document.querySelectorAll('[data-vista]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.vista === appState.vistaActual);
+  });
+}
+
+function restoreViewPreference() {
+  const vistaGuardada = localStorage.getItem('vistaPreferida');
+  if (vistaGuardada) {
+    appState.vistaActual = vistaGuardada;
+    appState.eleccionManual = true;
+  } else {
+    determinarVistaAutomatica();
+  }
+  syncVistaButtons();
+}
+
+function primerRender() {
+  if (appState.cachedData[appState.selectedUnit]) {
+    appState.playersData = appState.cachedData[appState.selectedUnit];
+    rebuildPlayerIndex();
+    renderUsers();
+  }
+}
+
+function rebuildPlayerIndex() {
+  appState.playersById.clear();
+  for (const p of appState.playersData) appState.playersById.set(p.id, p);
+}
+
+// ===== PERSISTENCIA DE CACHÉ =====
 function saveCacheToStorage() {
   try {
     const cache = {
-      'Uchiha': { data: appState.cachedData['Uchiha'], time: appState.lastFetchTime['Uchiha'] },
-      'Akatsuki': { data: appState.cachedData['Akatsuki'], time: appState.lastFetchTime['Akatsuki'] }
+      version: CONFIG.CACHE_VERSION,
+      Uchiha:   { data: appState.cachedData.Uchiha,   time: appState.lastFetchTime.Uchiha },
+      Akatsuki: { data: appState.cachedData.Akatsuki, time: appState.lastFetchTime.Akatsuki }
     };
     localStorage.setItem(CONFIG.CACHE_STORAGE_KEY, JSON.stringify(cache));
   } catch (e) {
@@ -181,10 +237,17 @@ function loadCacheFromStorage() {
     const raw = localStorage.getItem(CONFIG.CACHE_STORAGE_KEY);
     if (!raw) return;
     const cache = JSON.parse(raw);
-    ['Uchiha', 'Akatsuki'].forEach(unit => {
-      if (cache[unit] && cache[unit].data) {
-        appState.cachedData[unit] = cache[unit].data;
-        appState.lastFetchTime[unit] = cache[unit].time || 0;
+
+    if (cache.version !== CONFIG.CACHE_VERSION) {
+      localStorage.removeItem(CONFIG.CACHE_STORAGE_KEY);
+      return;
+    }
+
+    UNITS.forEach(unit => {
+      const entry = cache[unit];
+      if (entry && entry.data) {
+        appState.cachedData[unit] = entry.data;
+        appState.lastFetchTime[unit] = entry.time || 0;
       }
     });
   } catch (e) {
@@ -198,9 +261,7 @@ function mostrarNotificacion(mensaje = 'Datos estratégicos cargados', duracion 
 
   toastMessage.textContent = mensaje;
   toast.classList.remove('success', 'error');
-  toast.classList.add(tipo);
-  toast.classList.add('show');
-
+  toast.classList.add(tipo, 'show');
   toastBar.style.width = '100%';
 
   const startTime = Date.now();
@@ -216,156 +277,120 @@ function mostrarNotificacion(mensaje = 'Datos estratégicos cargados', duracion 
   }, 30);
 }
 
-// ===== INDICADOR DE FRESCURA =====
+// ===== INDICADOR DE FRESCURA (global) =====
 function updateFreshnessIndicator() {
-  const dot = document.getElementById('freshnessDot');
-  if (!dot) return;
+  if (!freshnessDot) return;
 
-  const lastFetch = appState.lastFetchTime[appState.selectedUnit];
-  if (!lastFetch) {
-    dot.style.backgroundColor = '#64748b';
-    dot.style.boxShadow = '0 0 8px rgba(100, 116, 139, 0.6)';
-    dot.title = 'Sin datos';
+  const times = UNITS.map(u => appState.lastFetchTime[u]).filter(t => t > 0);
+  if (times.length === 0) {
+    freshnessDot.style.backgroundColor = '#64748b';
+    freshnessDot.style.boxShadow = '0 0 8px rgba(100, 116, 139, 0.6)';
+    freshnessDot.title = 'Sin datos';
     return;
   }
 
+  const lastFetch = Math.max(...times);
   const age = Date.now() - lastFetch;
-  const ratio = Math.min(1, age / CONFIG.CACHE_TTL_MS); // 0 → fresco, 1 → vencido
+  const ratio = Math.min(1, age / CONFIG.CACHE_TTL_MS);
 
-  // Interpolación en dos segmentos: verde → naranja → rojo
   let hue;
   if (ratio < 0.5) {
-    // 142 (verde) → 30 (naranja)
     hue = 142 + (30 - 142) * (ratio / 0.5);
   } else {
-    // 30 (naranja) → 0 (rojo)
     hue = 30 + (0 - 30) * ((ratio - 0.5) / 0.5);
   }
 
   const color = `hsl(${hue}, 71%, 45%)`;
-  dot.style.backgroundColor = color;
-  dot.style.boxShadow = `0 0 8px ${color}`;
+  freshnessDot.style.backgroundColor = color;
+  freshnessDot.style.boxShadow = `0 0 8px ${color}`;
 
-  // Tooltip descriptivo
   const seconds = Math.floor(age / 1000);
   if (seconds < 60) {
-    dot.title = `Datos frescos (hace ${seconds}s)`;
+    freshnessDot.title = `Datos frescos (hace ${seconds}s)`;
   } else {
     const min = Math.floor(seconds / 60);
     const sec = seconds % 60;
-    dot.title = `Datos con ${min}m ${sec}s de antigüedad`;
+    freshnessDot.title = `Datos con ${min}m ${sec}s de antigüedad`;
   }
 }
 
 // ===== CONEXIÓN API Y CACHÉ =====
-async function fetchApiData(forceRefresh = false) {
-  const currentUnitId = appState.selectedUnit === 'Uchiha' ? CONFIG.UNIT_UCHIHA_ID : CONFIG.UNIT_AKATSUKI_ID;
+async function fetchApiData(force = false, unitArg = null, silent = false) {
+  const unit = unitArg || appState.selectedUnit;
+  const isDisplayedUnit = appState.selectedUnit === unit;
+  const currentUnitId = unit === 'Uchiha' ? CONFIG.UNIT_UCHIHA_ID : CONFIG.UNIT_AKATSUKI_ID;
   const now = Date.now();
 
-  // Usar caché si sigue vigente y no se fuerza (SILENCIOSO, sin toast)
-  if (!forceRefresh && appState.cachedData[appState.selectedUnit] &&
-      (now - appState.lastFetchTime[appState.selectedUnit] < CONFIG.CACHE_TTL_MS)) {
-    appState.playersData = appState.cachedData[appState.selectedUnit];
-    renderUsers();
+  if (!force &&
+      appState.cachedData[unit] &&
+      (now - appState.lastFetchTime[unit] < CONFIG.CACHE_TTL_MS)) {
+    if (isDisplayedUnit) {
+      appState.playersData = appState.cachedData[unit];
+      rebuildPlayerIndex();
+      renderUsers();
+    }
     return;
   }
 
-  refreshBtn.innerText = "⏳ Cargando...";
-  refreshBtn.disabled = true;
+  setRefreshLoading(true);
 
   try {
-    const muResponse = await fetch('https://api2.warera.io/trpc/mu.getById', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ muId: currentUnitId })
-    });
-    const muJson = await muResponse.json();
-    const memberIds = muJson.result.data.members;
+    const { players, failures, total } = await WareraAPI.fetchUnitPlayers(currentUnitId);
 
-    // Peticiones en paralelo
-    const userPromises = memberIds.map(id =>
-      fetch('https://api2.warera.io/trpc/user.getUserById', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: id })
-      }).then(res => res.json())
-    );
-
-    const usersResponses = await Promise.all(userPromises);
-
-    const formattedPlayers = usersResponses.map(res => {
-      const user = res.result.data;
-      const healthVal = user.skills?.health?.currentBarValue || 0;
-      const healthMax = user.skills?.health?.total || 100;
-      const hungerVal = user.skills?.hunger?.currentBarValue || 0;
-      const hungerMax = user.skills?.hunger?.total || 10;
-
-      const attackLevel = user.skills?.attack?.level || 0;
-      const modo = attackLevel > 2 ? 'WAR' : 'ECO';
-
-      let pillStatus = 'STANDBY';
-      let pillEndTime = null;
-      let pillRemainingMs = 0;
-
-      if (user.buffs) {
-        if (user.buffs.buffCodes?.includes('cocain') && user.buffs.buffEndAt) {
-          const end = new Date(user.buffs.buffEndAt).getTime();
-          if (end > now) {
-            pillStatus = 'BUFF';
-            pillEndTime = end;
-            pillRemainingMs = end - now;
-          }
-        } else if (user.buffs.debuffCodes?.includes('cocain') && user.buffs.debuffEndAt) {
-          const end = new Date(user.buffs.debuffEndAt).getTime();
-          if (end > now) {
-            pillStatus = 'DEBUFF';
-            pillEndTime = end;
-            pillRemainingMs = end - now;
-          }
-        }
-      }
-
-      const avatarStr = user.avatarUrl || `https://ui-avatars.com/api/?name=${user.username}&background=334155&color=fff`;
-
-      return {
-        id: user._id,
-        name: user.username,
-        avatarUrl: avatarStr,
-        health: Math.floor(healthVal),
-        healthMax: Math.floor(healthMax),
-        hunger: Math.floor(hungerVal),
-        hungerMax: Math.floor(hungerMax),
-        pillStatus,
-        pillEndTime,
-        pillRemainingMs,
-        modo,
-        isCombatReady: healthVal > 0 && hungerVal > 0
-      };
-    });
-
-    appState.cachedData[appState.selectedUnit] = formattedPlayers;
-    appState.lastFetchTime[appState.selectedUnit] = Date.now();
-    appState.playersData = formattedPlayers;
+    appState.cachedData[unit] = players;
+    appState.lastFetchTime[unit] = Date.now();
     saveCacheToStorage();
-    mostrarNotificacion('Datos estratégicos cargados', 1000, 'success');
 
+    if (appState.selectedUnit === unit) {
+      appState.playersData = players;
+      rebuildPlayerIndex();
+    }
+
+    if (!silent && isDisplayedUnit) {
+      if (failures > 0) {
+        mostrarNotificacion(`Cargados ${total - failures}/${total} miembros`, 2200, 'success');
+      } else {
+        mostrarNotificacion('Datos estratégicos cargados', 1200, 'success');
+      }
+    }
   } catch (error) {
-    console.error("Error consultando API:", error);
+    console.error(`Error consultando API (${unit}):`, error);
 
-    // Si hay caché disponible (de esta sesión o de localStorage), usarla
-    if (appState.cachedData[appState.selectedUnit]) {
-      appState.playersData = appState.cachedData[appState.selectedUnit];
-      renderUsers();
-      mostrarNotificacion('Sin conexión. Mostrando datos guardados.', 3500, 'error');
-    } else {
-      mostrarNotificacion('Error conectando con la API. Intenta más tarde.', 3500, 'error');
+    if (appState.cachedData[unit] && appState.selectedUnit === unit) {
+      appState.playersData = appState.cachedData[unit];
+      rebuildPlayerIndex();
+      if (!silent) mostrarNotificacion('Sin conexión. Mostrando datos guardados.', 3500, 'error');
+    } else if (!appState.cachedData[unit] && isDisplayedUnit) {
+      if (!silent) mostrarNotificacion('Error conectando con la API. Intenta más tarde.', 3500, 'error');
     }
   } finally {
-    refreshBtn.innerText = "🔄 Actualizar";
+    setRefreshLoading(false);
+    if (isDisplayedUnit) {
+      renderUsers();
+      updateFreshnessIndicator();
+    }
+  }
+}
+
+/**
+ * Refresca AMBAS unidades en paralelo.
+ *  - force: ignora el TTL de caché.
+ *  - silent: no muestra toast de éxito (para el auto-refresco).
+ */
+async function refreshAllUnits(force = true, silent = false) {
+  await Promise.allSettled(UNITS.map(u => fetchApiData(force, u, silent)));
+}
+
+function setRefreshLoading(isLoading) {
+  pendingFetches += isLoading ? 1 : -1;
+  if (pendingFetches < 0) pendingFetches = 0;
+
+  if (pendingFetches > 0) {
+    refreshBtn.innerText = CONFIG.REFRESH_BTN_LOADING;
+    refreshBtn.disabled = true;
+  } else {
+    refreshBtn.innerText = CONFIG.REFRESH_BTN_IDLE;
     refreshBtn.disabled = false;
-    renderUsers();
-    renderUsers();
-    updateFreshnessIndicator();
   }
 }
 
@@ -378,54 +403,58 @@ function getFilteredAndSortedPlayers() {
   }
 
   if (appState.smartSort) {
-    list = list.filter(p => p.pillStatus === 'BUFF');
-    list.sort((a, b) => {
-      if (a.isCombatReady !== b.isCombatReady) return b.isCombatReady - a.isCombatReady;
-      if (a.pillRemainingMs !== b.pillRemainingMs) return a.pillRemainingMs - b.pillRemainingMs;
-      const resourceA = a.health + (a.hunger * 10);
-      const resourceB = b.health + (b.hunger * 10);
-      return resourceB - resourceA;
-    });
-    return list;
+    return list
+      .filter(p => p.pillStatus === 'BUFF')
+      .sort((a, b) => {
+        if (a.isCombatReady !== b.isCombatReady) return b.isCombatReady - a.isCombatReady;
+        if (a.pillRemainingMs !== b.pillRemainingMs) return a.pillRemainingMs - b.pillRemainingMs;
+        const scoreA = a.health + a.hunger * 10;
+        const scoreB = b.health + b.hunger * 10;
+        return scoreB - scoreA;
+      });
   }
 
   if (appState.ordenActual === 'alfabetico') {
     list.sort((a, b) => a.name.localeCompare(b.name));
-  } else { // 'estado'
-    const resourceScore = (p) => p.health + (p.hunger * 10);
-
-    list.sort((a, b) => {
-      if (a.pillStatus === 'BUFF' && b.pillStatus !== 'BUFF') return -1;
-      if (a.pillStatus !== 'BUFF' && b.pillStatus === 'BUFF') return 1;
-      if (a.pillStatus === 'STANDBY' && b.pillStatus !== 'STANDBY') return -1;
-      if (a.pillStatus !== 'STANDBY' && b.pillStatus === 'STANDBY') return 1;
-      if (a.pillStatus === 'DEBUFF' && b.pillStatus !== 'DEBUFF') return 1;
-      if (a.pillStatus !== 'DEBUFF' && b.pillStatus === 'DEBUFF') return -1;
-
-      if (a.pillStatus === 'BUFF') {
-        if (a.pillRemainingMs !== b.pillRemainingMs) return a.pillRemainingMs - b.pillRemainingMs;
-        return resourceScore(b) - resourceScore(a);
-      }
-      if (a.pillStatus === 'STANDBY') {
-        if (resourceScore(a) !== resourceScore(b)) return resourceScore(b) - resourceScore(a);
-        return a.name.localeCompare(b.name);
-      }
-      if (a.pillStatus === 'DEBUFF') {
-        return a.pillRemainingMs - b.pillRemainingMs;
-      }
-      return 0;
-    });
+    return list;
   }
+
+  const resourceScore = (p) => p.health + p.hunger * 10;
+
+  list.sort((a, b) => {
+    if (a.pillStatus === 'BUFF'    && b.pillStatus !== 'BUFF')    return -1;
+    if (a.pillStatus !== 'BUFF'    && b.pillStatus === 'BUFF')    return  1;
+    if (a.pillStatus === 'STANDBY' && b.pillStatus !== 'STANDBY') return -1;
+    if (a.pillStatus !== 'STANDBY' && b.pillStatus === 'STANDBY') return  1;
+    if (a.pillStatus === 'DEBUFF'  && b.pillStatus !== 'DEBUFF')  return  1;
+    if (a.pillStatus !== 'DEBUFF'  && b.pillStatus === 'DEBUFF')  return -1;
+
+    if (a.pillStatus === 'BUFF') {
+      if (a.pillRemainingMs !== b.pillRemainingMs) return a.pillRemainingMs - b.pillRemainingMs;
+      return resourceScore(b) - resourceScore(a);
+    }
+    if (a.pillStatus === 'STANDBY') {
+      if (resourceScore(a) !== resourceScore(b)) return resourceScore(b) - resourceScore(a);
+      return a.name.localeCompare(b.name);
+    }
+    if (a.pillStatus === 'DEBUFF') {
+      return a.pillRemainingMs - b.pillRemainingMs;
+    }
+    return 0;
+  });
   return list;
 }
 
 // ===== RENDERIZADO PRINCIPAL =====
 function renderUsers() {
   const players = getFilteredAndSortedPlayers();
-  const vista = appState.vistaActual;
 
-  if (vista === 'tabla') {
+  if (players.length === 0) {
+    renderEmptyState();
+  } else if (appState.vistaActual === 'tabla') {
     renderTabla(players);
+  } else if (appState.vistaActual === 'compacta') {
+    renderCompacta(players);
   } else {
     renderTarjetas(players);
   }
@@ -433,9 +462,53 @@ function renderUsers() {
   actualizarTemporizadores();
 }
 
+function renderEmptyState() {
+  const motivo = appState.smartSort
+    ? 'No hay jugadores con BUFF activo en este momento.'
+    : 'No hay jugadores que coincidan con los filtros actuales.';
+  usersContainer.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-state-icon">🕵️</div>
+      <p>${motivo}</p>
+    </div>
+  `;
+}
+
 // ===== RENDERIZADO: TABLA =====
 function renderTabla(players) {
-  let html = `
+  const rows = players.map((p, index) => {
+    const statusHtml = getStatusHtml(p);
+    const modoBadge  = p.modo === 'WAR'
+      ? `<span class="badge-mode badge-war">WAR</span>`
+      : `<span class="badge-mode badge-eco">ECO</span>`;
+    const healthPct  = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
+    const hungerPct  = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
+    const rowClass   = p.isCombatReady ? '' : 'out-of-combat';
+    const safeName   = encodeURIComponent(p.name);
+
+    return `
+      <tr class="${rowClass}" style="animation-delay: ${index * 0.05}s">
+        <td>
+          <div class="player-info">
+            <img src="${p.avatarUrl}" class="avatar" alt="" loading="lazy"
+                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${safeName}&background=334155&color=fff'">
+            <strong>${p.name}</strong>
+          </div>
+        </td>
+        <td>${statusHtml}</td>
+        <td>
+          <div class="stat-text">${p.health} / ${p.healthMax} HP</div>
+          <div class="progress-bg"><div class="progress-fill health-fill" style="width: ${healthPct}%"></div></div>
+        </td>
+        <td>
+          <div class="stat-text">${p.hunger} / ${p.hungerMax}</div>
+          <div class="progress-bg"><div class="progress-fill hunger-fill" style="width: ${hungerPct}%"></div></div>
+        </td>
+        <td>${modoBadge}</td>
+      </tr>`;
+  }).join('');
+
+  usersContainer.innerHTML = `
     <table class="vista-tabla">
       <thead>
         <tr>
@@ -446,94 +519,102 @@ function renderTabla(players) {
           <th>Modo</th>
         </tr>
       </thead>
-      <tbody>
-  `;
-
-  players.forEach((p, index) => {
-    const statusHtml = getStatusHtml(p);
-    const modoBadge = p.modo === 'WAR' ? `<span class="badge-mode badge-war">WAR</span>` : `<span class="badge-mode badge-eco">ECO</span>`;
-    const healthPercent = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
-    const hungerPercent = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
-    const rowClass = p.isCombatReady ? '' : 'out-of-combat';
-
-    html += `
-      <tr class="${rowClass}" style="animation-delay: ${index * 0.05}s">
-        <td>
-          <div class="player-info">
-            <img src="${p.avatarUrl}" class="avatar" alt="Avatar" onerror="this.src='https://ui-avatars.com/api/?name=${p.name}&background=334155&color=fff'">
-            <strong>${p.name}</strong>
-          </div>
-        </td>
-        <td>${statusHtml}</td>
-        <td>
-          <div class="stat-text">${p.health} / ${p.healthMax} HP</div>
-          <div class="progress-bg"><div class="progress-fill health-fill" style="width: ${healthPercent}%"></div></div>
-        </td>
-        <td>
-          <div class="stat-text">${p.hunger} / ${p.hungerMax}</div>
-          <div class="progress-bg"><div class="progress-fill hunger-fill" style="width: ${hungerPercent}%"></div></div>
-        </td>
-        <td>${modoBadge}</td>
-      </tr>
-    `;
-  });
-
-  html += `</tbody></table>`;
-  usersContainer.innerHTML = html;
+      <tbody>${rows}</tbody>
+    </table>`;
 }
 
-// ===== RENDERIZADO: TARJETAS (2 columnas) =====
+// ===== RENDERIZADO: TARJETAS =====
 function renderTarjetas(players) {
-  let html = `<div class="vista-tarjetas">`;
-
-  players.forEach((p, index) => {
+  const cards = players.map((p, index) => {
     const statusHtml = getStatusHtml(p);
-    const modoBadge = p.modo === 'WAR' ? `<span class="modo-badge war">WAR</span>` : `<span class="modo-badge eco">ECO</span>`;
-    const healthPercent = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
-    const hungerPercent = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
+    const modoBadge  = p.modo === 'WAR'
+      ? `<span class="modo-badge war">WAR</span>`
+      : `<span class="modo-badge eco">ECO</span>`;
+    const healthPct = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
+    const hungerPct = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
     const estadoClass = p.pillStatus.toLowerCase();
+    const safeName = encodeURIComponent(p.name);
 
-    html += `
+    return `
       <div class="tarjeta-usuario ${estadoClass}" style="animation-delay: ${index * 0.05}s">
         <div class="player-info">
-          <img src="${p.avatarUrl}" class="avatar" alt="Avatar" onerror="this.src='https://ui-avatars.com/api/?name=${p.name}&background=334155&color=fff'">
+          <img src="${p.avatarUrl}" class="avatar" alt="" loading="lazy"
+               onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${safeName}&background=334155&color=fff'">
           <span class="player-name">${p.name}</span>
           ${modoBadge}
         </div>
         <div class="stat-row">
           <span class="stat-text">Vida: ${p.health} / ${p.healthMax} HP</span>
-          <div class="progress-bg"><div class="progress-fill health-fill" style="width: ${healthPercent}%"></div></div>
+          <div class="progress-bg"><div class="progress-fill health-fill" style="width: ${healthPct}%"></div></div>
         </div>
         <div class="stat-row">
           <span class="stat-text">Hambre: ${p.hunger} / ${p.hungerMax}</span>
-          <div class="progress-bg"><div class="progress-fill hunger-fill" style="width: ${hungerPercent}%"></div></div>
+          <div class="progress-bg"><div class="progress-fill hunger-fill" style="width: ${hungerPct}%"></div></div>
         </div>
         <div class="status-row">${statusHtml}</div>
+      </div>`;
+  }).join('');
+
+  usersContainer.innerHTML = `<div class="vista-tarjetas">${cards}</div>`;
+}
+
+// ===== RENDERIZADO: COMPACTA (mini-tarjetas densas) =====
+function renderCompacta(players) {
+  const cards = players.map((p, index) => {
+    const healthPct = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
+    const hungerPct = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
+    const estadoClass = p.pillStatus.toLowerCase();
+    const safeName = encodeURIComponent(p.name);
+    const shortName = p.name.length > 12 ? p.name.slice(0, 11) + '…' : p.name;
+
+    let statusMini;
+    if (p.pillStatus === 'BUFF') {
+      statusMini = `<span class="status-dot dot-buff"></span><span class="timer-text" data-player-id="${p.id}">${formatTimer(p.pillRemainingMs)}</span>`;
+    } else if (p.pillStatus === 'DEBUFF') {
+      statusMini = `<span class="status-dot dot-debuff"></span><span class="timer-text" data-player-id="${p.id}">${formatTimer(p.pillRemainingMs)}</span>`;
+    } else {
+      statusMini = `<span class="status-dot dot-standby"></span><span class="mini-standby">ESPERA</span>`;
+    }
+
+    return `
+      <div class="mini-card ${estadoClass}" style="animation-delay: ${index * 0.02}s">
+        <div class="mini-top">
+          <img src="${p.avatarUrl}" class="mini-avatar" alt="" loading="lazy"
+               onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${safeName}&background=334155&color=fff'">
+          <span class="mini-name" title="${p.name}">${shortName}</span>
+        </div>
+        <div class="mini-bar-row">
+          <span class="mini-label">HP</span>
+          <div class="mini-bar"><div class="mini-fill health-fill" style="width:${healthPct}%"></div></div>
+          <span class="mini-value">${p.health}</span>
+        </div>
+        <div class="mini-bar-row">
+          <span class="mini-label">FD</span>
+          <div class="mini-bar"><div class="mini-fill hunger-fill" style="width:${hungerPct}%"></div></div>
+          <span class="mini-value">${p.hunger}</span>
+        </div>
+        <div class="mini-status">${statusMini}</div>
       </div>
     `;
-  });
+  }).join('');
 
-  html += `</div>`;
-  usersContainer.innerHTML = html;
+  usersContainer.innerHTML = `<div class="vista-compacta">${cards}</div>`;
 }
 
 // ===== UTILIDADES: ESTADO Y TEMPORIZADORES =====
 function getStatusHtml(player) {
   if (player.pillStatus === 'BUFF') {
     return `<span class="status-dot dot-buff"></span> <span class="pill-badge buff">BUFF</span> <span class="timer-text" data-player-id="${player.id}">${formatTimer(player.pillRemainingMs)}</span>`;
-  } else if (player.pillStatus === 'DEBUFF') {
-    return `<span class="status-dot dot-debuff"></span> <span class="pill-badge debuff">DEBUFF</span> <span class="timer-text" data-player-id="${player.id}">${formatTimer(player.pillRemainingMs)}</span>`;
-  } else {
-    return `<span class="status-dot dot-standby"></span> <span class="pill-badge standby">En Espera</span>`;
   }
+  if (player.pillStatus === 'DEBUFF') {
+    return `<span class="status-dot dot-debuff"></span> <span class="pill-badge debuff">DEBUFF</span> <span class="timer-text" data-player-id="${player.id}">${formatTimer(player.pillRemainingMs)}</span>`;
+  }
+  return `<span class="status-dot dot-standby"></span> <span class="pill-badge standby">En Espera</span>`;
 }
 
 function actualizarTemporizadores() {
-  const timers = document.querySelectorAll('.timer-text');
-  timers.forEach(el => {
-    const playerId = el.dataset.playerId;
-    if (!playerId) return;
-    const player = appState.playersData.find(p => p.id === playerId);
+  document.querySelectorAll('.timer-text').forEach(el => {
+    const player = appState.playersById.get(el.dataset.playerId);
     if (player && player.pillStatus !== 'STANDBY') {
       el.innerText = formatTimer(player.pillRemainingMs);
     }
@@ -543,7 +624,7 @@ function actualizarTemporizadores() {
 function formatTimer(ms) {
   if (!ms || ms <= 0) return '00:00:00';
   const totalSeconds = Math.floor(ms / 1000);
-  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+  const hours   = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
   const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
   const seconds = String(totalSeconds % 60).padStart(2, '0');
   return `${hours}:${minutes}:${seconds}`;
@@ -551,11 +632,12 @@ function formatTimer(ms) {
 
 // ===== BUCLE DE TEMPORIZADORES =====
 function startTimerLoop() {
-  setInterval(() => {
+  if (timerLoopId) return;
+  timerLoopId = setInterval(() => {
     let statusChanged = false;
     const now = Date.now();
 
-    appState.playersData.forEach(p => {
+    for (const p of appState.playersData) {
       if (p.pillStatus !== 'STANDBY' && p.pillEndTime) {
         p.pillRemainingMs = p.pillEndTime - now;
         if (p.pillRemainingMs <= 0) {
@@ -565,10 +647,12 @@ function startTimerLoop() {
           statusChanged = true;
         }
       }
-    });
+    }
 
-    // Actualizar indicador de frescura cada segundo
-    updateFreshnessIndicator();
+    if (++freshnessTickCount >= CONFIG.FRESHNESS_REFRESH_EVERY_N_TICKS) {
+      freshnessTickCount = 0;
+      updateFreshnessIndicator();
+    }
 
     if (statusChanged && appState.smartSort) {
       renderUsers();
@@ -577,3 +661,13 @@ function startTimerLoop() {
     }
   }, 1000);
 }
+
+/**
+ * Detiene los intervalos activos.
+ */
+function stopApp() {
+  if (timerLoopId)       { clearInterval(timerLoopId);       timerLoopId = null; }
+  if (refreshIntervalId) { clearInterval(refreshIntervalId); refreshIntervalId = null; }
+}
+
+window.__warroom = { stopApp, appState };
