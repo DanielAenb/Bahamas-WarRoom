@@ -1,6 +1,5 @@
 /**
  * Bahamas WarRoom — Capa de acceso a la API de Warera.
- * Expone window.WareraAPI.fetchUnitPlayers(unitId)
  */
 (function () {
   'use strict';
@@ -14,8 +13,7 @@
     DELAY_BETWEEN_MS: 40
   };
 
-  // Proxy de imágenes con CORS garantizado.
-  // Necesario para poder dibujar las fotos en <canvas> sin "tainted canvas".
+  // Proxy de imágenes con CORS garantizado (necesario para canvas).
   const IMAGE_PROXY = 'https://wsrv.nl/';
 
   function getApiKey() {
@@ -29,10 +27,11 @@
     if (!url) return url;
     const params = new URLSearchParams({
       url: url,
-      w: '200',
-      h: '200',
+      w: '400',
+      h: '400',
       fit: 'cover',
-      output: 'png'
+      output: 'png',
+      n: '-1'
     });
     return `${IMAGE_PROXY}?${params.toString()}`;
   }
