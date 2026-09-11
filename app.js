@@ -13,7 +13,9 @@ const CONFIG = {
   MANUAL_COOLDOWN_MS: 30 * 1000,
   RATE_LIMIT_COOLDOWN_MS: 60 * 1000,
   FRESHNESS_REFRESH_EVERY_N_TICKS: 5,
-  HOLD_MS: 1000
+  HOLD_MS: 1000,
+  CAPTURE_SCALE: 2.5,
+  IMAGE_LOAD_TIMEOUT_MS: 12000
 };
 
 const UNITS = ['Uchiha', 'Akatsuki'];
@@ -104,7 +106,7 @@ function bindUiEvents() {
       mostrarNotificacion(
         appState.forceDownload
           ? 'Capturas se descargarán como PNG.'
-          : 'Capturas usarán portapapeles o compartir.',
+          : 'Capturas usarán el mejor método disponible.',
         1500,
         'success'
       );
@@ -920,53 +922,64 @@ function roundRect(ctx, x, y, w, h, r) {
 
 /**
  * Carga una imagen lista para dibujar en <canvas>.
- * Espera recibir una URL con CORS garantizado (por ejemplo la proxeada de warera-api).
+ * Estrategia doble: primero el proxy con CORS garantizado,
+ * luego el original con crossOrigin (por si el CDN lo permite).
  */
-async function loadImage(url, timeoutMs = 8000) {
-  if (!url) return null;
+async function loadImage(primaryUrl, fallbackUrl = null, timeoutMs = CONFIG.IMAGE_LOAD_TIMEOUT_MS) {
+  const tryLoad = async (url) => {
+    if (!url) return null;
 
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(url, { mode: 'cors', signal: controller.signal });
-    clearTimeout(timer);
-    if (res.ok) {
-      const blob = await res.blob();
-      const objUrl = URL.createObjectURL(blob);
-      const img = await new Promise((resolve) => {
-        const i = new Image();
-        i.onload = () => resolve(i);
-        i.onerror = () => resolve(null);
-        i.src = objUrl;
-      });
-      URL.revokeObjectURL(objUrl);
-      if (img) return img;
-    }
-  } catch (_) {}
+    // Intento 1: fetch + blob URL (evita tainting)
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const res = await fetch(url, { mode: 'cors', signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) {
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const img = await new Promise((resolve) => {
+          const i = new Image();
+          i.onload = () => resolve(i);
+          i.onerror = () => resolve(null);
+          i.src = objUrl;
+        });
+        URL.revokeObjectURL(objUrl);
+        if (img) return img;
+      }
+    } catch (_) {}
 
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      resolve(null);
-    }, timeoutMs);
-    img.onload = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(img);
-    };
-    img.onerror = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(null);
-    };
-    img.src = url;
-  });
+    // Intento 2: <img crossOrigin='anonymous'> directo
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        resolve(null);
+      }, timeoutMs);
+      img.onload = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(img);
+      };
+      img.onerror = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(null);
+      };
+      img.src = url;
+    });
+  };
+
+  let img = await tryLoad(primaryUrl);
+  if (!img && fallbackUrl && fallbackUrl !== primaryUrl) {
+    img = await tryLoad(fallbackUrl);
+  }
+  return img;
 }
 
 function truncateText(ctx, text, maxWidth) {
@@ -1181,11 +1194,13 @@ async function buildCaptureBlob(players) {
   const FOOTER_H = 60;
   const TOTAL_H = HEADER_H + ROW_H * players.length + FOOTER_H;
 
-  const scale = 2;
+  const scale = CONFIG.CAPTURE_SCALE;
   const canvas = document.createElement('canvas');
-  canvas.width = W * scale;
-  canvas.height = TOTAL_H * scale;
+  canvas.width = Math.round(W * scale);
+  canvas.height = Math.round(TOTAL_H * scale);
   const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.scale(scale, scale);
 
   let buff = 0, debuff = 0;
@@ -1198,7 +1213,7 @@ async function buildCaptureBlob(players) {
   drawListHeader(ctx, W, HEADER_H);
 
   const avatars = await Promise.all(
-    players.map(p => loadImage(p.avatarUrlProxy || p.avatarUrl))
+    players.map(p => loadImage(p.avatarUrlProxy, p.avatarUrl))
   );
 
   players.forEach((p, i) => {
@@ -1245,11 +1260,13 @@ async function buildPlayerCaptureBlob(player) {
   const H = 230;
   const PAD = 24;
 
-  const scale = 2;
+  const scale = CONFIG.CAPTURE_SCALE;
   const canvas = document.createElement('canvas');
-  canvas.width = W * scale;
-  canvas.height = H * scale;
+  canvas.width = Math.round(W * scale);
+  canvas.height = Math.round(H * scale);
   const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.scale(scale, scale);
 
   fillCaptureBg(ctx, W, H, computePlayerCaptureBg(player));
@@ -1272,7 +1289,7 @@ async function buildPlayerCaptureBlob(player) {
   ctx.fillStyle = CAPTURE.C.separator;
   ctx.fillRect(PAD, 40, W - PAD * 2, 1);
 
-  const avatarImg = await loadImage(player.avatarUrlProxy || player.avatarUrl);
+  const avatarImg = await loadImage(player.avatarUrlProxy, player.avatarUrl);
   drawAvatar(ctx, avatarImg, player, PAD + 36, 105, 36);
 
   const nameX = PAD + 90;
@@ -1290,7 +1307,11 @@ async function buildPlayerCaptureBlob(player) {
   return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
 }
 
-// ===== ENTREGA DEL BLOB (compartir / portapapeles / descarga) =====
+// ===== ENTREGA DEL BLOB =====
+function isMobileDevice() {
+  return /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(navigator.userAgent);
+}
+
 async function copyBlobToClipboard(blob) {
   try {
     if (navigator.clipboard && window.ClipboardItem) {
@@ -1319,27 +1340,29 @@ async function deliverBlob(blob, filename) {
     return { method: 'download' };
   }
 
-  // 2) Web Share API (móvil)
-  const file = new File([blob], filename, { type: 'image/png' });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({
-        files: [file],
-        title: 'Bahamas WarRoom',
-        text: 'Captura del clan'
-      });
-      return { method: 'share' };
-    } catch (e) {
-      if (e.name === 'AbortError') return { method: 'cancelled' };
-      console.warn('Share falló, probando alternativas:', e);
+  // 2) Web Share API — SOLO en móvil (PC abre el share sheet de Windows 11, no lo queremos)
+  if (isMobileDevice()) {
+    const file = new File([blob], filename, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'Bahamas WarRoom',
+          text: 'Captura del clan'
+        });
+        return { method: 'share' };
+      } catch (e) {
+        if (e.name === 'AbortError') return { method: 'cancelled' };
+        console.warn('Share falló, probando portapapeles:', e);
+      }
     }
   }
 
-  // 3) Portapapeles (desktop)
+  // 3) Portapapeles (desktop / móvil sin share)
   const ok = await copyBlobToClipboard(blob);
   if (ok) return { method: 'clipboard' };
 
-  // 4) Fallback: descarga
+  // 4) Fallback final: descarga
   downloadBlob(blob, filename);
   return { method: 'download' };
 }
@@ -1355,7 +1378,6 @@ function notifyDeliveryResult(result) {
       mostrarNotificacion('Captura lista para compartir.', 1800, 'success');
       break;
     case 'cancelled':
-      // Silencioso — el usuario simplemente canceló
       break;
     case 'clipboard':
       mostrarNotificacion('Captura copiada al portapapeles.', 2000, 'success');
