@@ -1,35 +1,46 @@
 /**
  * Bahamas WarRoom — Capa de acceso a la API de Warera.
- * Expone window.WareraAPI.fetchUnitPlayers(unitId) → Promise<{ players, failures, total }>
+ * Expone window.WareraAPI.fetchUnitPlayers(unitId)
  */
 (function () {
   'use strict';
 
   const API_BASE = 'https://api2.warera.io/trpc';
   const API_KEY_STORAGE = 'warera_api_key';
-
-  // A partir de este nivel de ataque un jugador se considera en modo WAR.
   const WAR_ATTACK_LEVEL_THRESHOLD = 2;
+
+  const REQUEST_LIMIT = {
+    CONCURRENCY: 4,
+    DELAY_BETWEEN_MS: 40
+  };
 
   function getApiKey() {
     try { return localStorage.getItem(API_KEY_STORAGE) || ''; }
     catch { return ''; }
   }
 
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  class RateLimitError extends Error {
+    constructor(msg) {
+      super(msg);
+      this.name = 'RateLimitError';
+      this.status = 429;
+    }
+  }
+
   async function post(path, body) {
     const headers = { 'Content-Type': 'application/json' };
-
-    // Si el usuario configuró una key personal, la enviamos.
-    // OJO: si algún día Warera cambia el esquema (por ejemplo a 'x-api-key'
-    // o a un query param), este es el ÚNICO sitio que hay que tocar.
     const key = getApiKey();
-    if (key) headers['Authorization'] = `Bearer ${key}`;
+    if (key) headers['X-API-Key'] = key;
 
     const res = await fetch(`${API_BASE}/${path}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body)
     });
+
+    if (res.status === 429) throw new RateLimitError(`Rate limited en ${path}`);
     if (!res.ok) throw new Error(`HTTP ${res.status} en ${path}`);
     return res.json();
   }
@@ -37,24 +48,69 @@
   async function fetchUnitMembers(unitId) {
     const json = await post('mu.getById', { muId: unitId });
     const members = json?.result?.data?.members;
-    if (!Array.isArray(members)) {
-      throw new Error('Respuesta inválida de mu.getById');
-    }
+    if (!Array.isArray(members)) throw new Error('Respuesta inválida de mu.getById');
     return members;
   }
 
   async function fetchUser(userId) {
-    const json = await post('user.getUserById', { userId });
-    const data = json?.result?.data;
-    if (!data) throw new Error(`Usuario ${userId} sin datos`);
-    return data;
+    try {
+      const json = await post('user.getUserById', { userId });
+      const data = json?.result?.data;
+      if (!data) {
+        console.warn(`[Warera] Usuario ${userId} devolvió data null`);
+        throw new Error(`Usuario ${userId} sin datos`);
+      }
+      return data;
+    } catch (e) {
+      if (e.name !== 'RateLimitError') {
+        console.warn(`[Warera] Falló user ${userId}: ${e.message}`);
+      }
+      throw e;
+    }
+  }
+
+  async function fetchUsersBatch(memberIds) {
+    const results = new Array(memberIds.length);
+    let cursor = 0;
+    let rateLimited = false;
+
+    async function worker() {
+      while (true) {
+        if (rateLimited) return;
+        const i = cursor++;
+        if (i >= memberIds.length) return;
+
+        try {
+          const user = await fetchUser(memberIds[i]);
+          results[i] = { status: 'fulfilled', value: user };
+        } catch (e) {
+          results[i] = { status: 'rejected', reason: e, id: memberIds[i] };
+          if (e.name === 'RateLimitError') {
+            rateLimited = true;
+            return;
+          }
+        }
+        await sleep(REQUEST_LIMIT.DELAY_BETWEEN_MS);
+      }
+    }
+
+    const workerCount = Math.min(REQUEST_LIMIT.CONCURRENCY, memberIds.length);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+    for (let i = 0; i < results.length; i++) {
+      if (!results[i]) {
+        results[i] = { status: 'rejected', reason: new Error('No procesado'), id: memberIds[i] };
+      }
+    }
+
+    return { results, rateLimited };
   }
 
   function formatPlayer(user, now) {
-    const healthVal  = user.skills?.health?.currentBarValue ?? 0;
-    const healthMax  = user.skills?.health?.total           ?? 100;
-    const hungerVal  = user.skills?.hunger?.currentBarValue ?? 0;
-    const hungerMax  = user.skills?.hunger?.total           ?? 10;
+    const healthVal = user.skills?.health?.currentBarValue ?? 0;
+    const healthMax = user.skills?.health?.total           ?? 100;
+    const hungerVal = user.skills?.hunger?.currentBarValue ?? 0;
+    const hungerMax = user.skills?.hunger?.total           ?? 10;
 
     const attackLevel = user.skills?.attack?.level ?? 0;
     const modo = attackLevel > WAR_ATTACK_LEVEL_THRESHOLD ? 'WAR' : 'ECO';
@@ -97,33 +153,49 @@
     };
   }
 
-  /**
-   * Carga todos los miembros de una unidad y devuelve los jugadores formateados.
-   * Tolerante a fallos individuales: si un miembro falla, el resto se devuelve igual.
-   */
   async function fetchUnitPlayers(unitId) {
     const memberIds = await fetchUnitMembers(unitId);
-    if (memberIds.length === 0) return { players: [], failures: 0, total: 0 };
+    if (memberIds.length === 0) {
+      return { players: [], failures: 0, total: 0, rateLimited: false, failuresDetail: [] };
+    }
 
     const now = Date.now();
-    const results = await Promise.allSettled(memberIds.map(fetchUser));
+    const { results, rateLimited } = await fetchUsersBatch(memberIds);
 
     const players = [];
-    let failures = 0;
-    for (const r of results) {
+    const failuresDetail = [];
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
       if (r.status === 'fulfilled') {
         players.push(formatPlayer(r.value, now));
       } else {
-        failures++;
+        failuresDetail.push({
+          id: r.id,
+          reason: r.reason?.message || 'desconocido',
+          isRateLimit: r.reason?.name === 'RateLimitError'
+        });
       }
     }
 
+    if (failuresDetail.length > 0) {
+      console.group(`[Warera] ${unitId}: ${players.length}/${memberIds.length} cargados`);
+      console.table(failuresDetail);
+      console.groupEnd();
+    }
+
     if (players.length === 0) {
+      if (rateLimited) throw new RateLimitError('Límite alcanzado sin datos');
       throw new Error('No se pudo cargar ningún miembro de la unidad');
     }
 
-    return { players, failures, total: memberIds.length };
+    return {
+      players,
+      failures: failuresDetail.length,
+      total: memberIds.length,
+      rateLimited,
+      failuresDetail
+    };
   }
 
-  window.WareraAPI = { fetchUnitPlayers, getApiKey };
+  window.WareraAPI = { fetchUnitPlayers, getApiKey, RateLimitError };
 })();

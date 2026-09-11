@@ -9,7 +9,6 @@
 </head>
 <body>
 
-  <!-- Menú lateral de configuración -->
   <div id="apiSidebar" class="sidebar" role="dialog" aria-label="Configuraciones">
     <div class="sidebar-header">
       <h3>Configuraciones</h3>
@@ -17,7 +16,6 @@
     </div>
     <div class="sidebar-content">
 
-      <!-- Clave API personal (opcional) -->
       <div class="config-group">
         <label for="apiKeyInput">Clave API personal (opcional):</label>
         <input type="password" id="apiKeyInput" placeholder="Pega aquí tu key" autocomplete="off" />
@@ -32,7 +30,6 @@
 
       <hr>
 
-      <!-- Selector de vista -->
       <div class="config-group">
         <label>Vista de usuarios:</label>
         <div class="segmented-control">
@@ -48,7 +45,6 @@
     </div>
   </div>
 
-  <!-- Overlay -->
   <div id="overlay" class="overlay"></div>
 
   <div class="app-container">
@@ -58,15 +54,18 @@
       </div>
       <div class="credentials-bar">
         <button id="openApiBtn" class="icon-btn" title="Configuraciones" aria-label="Abrir configuraciones">⚙️</button>
+        <button id="copyCaptureBtn" class="icon-btn" title="Copiar captura" aria-label="Copiar captura">📸</button>
         <div class="refresh-group">
           <span id="freshnessDot" class="freshness-dot" title="Sin datos" aria-label="Estado de frescura"></span>
-          <button id="refreshDataBtn" class="btn btn-primary">🔄 Actualizar Datos</button>
+          <button id="refreshDataBtn" class="btn btn-primary refresh-btn">
+            <span id="refreshDataLabel">🔄 Actualizar Datos</span>
+            <span id="refreshDataProgress" class="refresh-btn-progress"></span>
+          </button>
         </div>
       </div>
     </header>
 
     <section class="controls-panel">
-      <!-- Selector de Clan -->
       <div class="control-group">
         <label>Unidad Militar:</label>
         <div class="segmented-control">
@@ -75,7 +74,6 @@
         </div>
       </div>
 
-      <!-- Selector de Modo -->
       <div class="control-group">
         <label>Filtrar por Modo:</label>
         <div class="segmented-control">
@@ -85,7 +83,6 @@
         </div>
       </div>
 
-      <!-- Selector de Orden -->
       <div class="control-group">
         <label>Ordenar por:</label>
         <div class="segmented-control">
@@ -94,7 +91,6 @@
         </div>
       </div>
 
-      <!-- Prioridad Táctica -->
       <div class="control-group tactical-group">
         <span class="toggle-label">🚨 Prioridad Táctica</span>
         <div class="tooltip" tabindex="0" role="button"
@@ -110,14 +106,15 @@
       </div>
     </section>
 
-    <main class="table-container" id="usersContainer">
-      <!-- Aquí se inyecta la tabla, las tarjetas o el estado vacío -->
-    </main>
+    <div id="apiBanner" class="api-banner" hidden>
+      <span id="apiBannerText"></span>
+    </div>
+
+    <main class="table-container" id="usersContainer"></main>
   </div>
 
-  <!-- Toast -->
   <div id="toast" class="toast" role="status" aria-live="polite">
-    <span id="toastMessage">Datos estratégicos cargados</span>
+    <span id="toastMessage">Información estratégica cargada</span>
     <div id="toastBar" class="toast-bar" style="width:100%"></div>
   </div>
 
