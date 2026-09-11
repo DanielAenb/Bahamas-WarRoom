@@ -42,6 +42,19 @@
         </span>
       </div>
 
+      <hr>
+
+      <div class="config-group">
+        <label>Capturas:</label>
+        <label class="checkbox-line">
+          <input type="checkbox" id="forceDownloadToggle">
+          <span>Forzar descarga de capturas (no usar portapapeles ni compartir)</span>
+        </label>
+        <span class="config-hint">
+          Marca esta opción si el portapapeles o compartir no funcionan en tu dispositivo. Las capturas se descargarán como PNG.
+        </span>
+      </div>
+
     </div>
   </div>
 
@@ -54,7 +67,7 @@
       </div>
       <div class="credentials-bar">
         <button id="openApiBtn" class="icon-btn" title="Configuraciones" aria-label="Abrir configuraciones">⚙️</button>
-        <button id="copyCaptureBtn" class="icon-btn" title="Copiar captura" aria-label="Copiar captura">📸</button>
+        <button id="copyCaptureBtn" class="icon-btn" title="Capturar" aria-label="Capturar">📸</button>
         <div class="refresh-group">
           <span id="freshnessDot" class="freshness-dot" title="Sin datos" aria-label="Estado de frescura"></span>
           <button id="refreshDataBtn" class="btn btn-primary refresh-btn">

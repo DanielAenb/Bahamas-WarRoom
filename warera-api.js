@@ -14,12 +14,28 @@
     DELAY_BETWEEN_MS: 40
   };
 
+  // Proxy de imágenes con CORS garantizado.
+  // Necesario para poder dibujar las fotos en <canvas> sin "tainted canvas".
+  const IMAGE_PROXY = 'https://wsrv.nl/';
+
   function getApiKey() {
     try { return localStorage.getItem(API_KEY_STORAGE) || ''; }
     catch { return ''; }
   }
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function buildProxyUrl(url) {
+    if (!url) return url;
+    const params = new URLSearchParams({
+      url: url,
+      w: '200',
+      h: '200',
+      fit: 'cover',
+      output: 'png'
+    });
+    return `${IMAGE_PROXY}?${params.toString()}`;
+  }
 
   class RateLimitError extends Error {
     constructor(msg) {
@@ -136,11 +152,13 @@
 
     const avatarUrl = user.avatarUrl
       || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=334155&color=fff`;
+    const avatarUrlProxy = buildProxyUrl(avatarUrl);
 
     return {
       id: user._id,
       name: user.username,
       avatarUrl,
+      avatarUrlProxy,
       health: Math.floor(healthVal),
       healthMax: Math.floor(healthMax),
       hunger: Math.floor(hungerVal),

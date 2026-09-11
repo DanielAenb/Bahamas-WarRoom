@@ -29,7 +29,8 @@ const appState = {
   lastFetchTime: { Uchiha: 0, Akatsuki: 0 },
   vistaActual: 'tabla',
   eleccionManual: false,
-  apiStatus: 'ok'
+  apiStatus: 'ok',
+  forceDownload: localStorage.getItem('warera_force_download') === '1'
 };
 
 const sidebar             = document.getElementById('apiSidebar');
@@ -40,6 +41,7 @@ const copyCaptureBtn      = document.getElementById('copyCaptureBtn');
 const apiKeyInput         = document.getElementById('apiKeyInput');
 const saveKeyBtn          = document.getElementById('saveKeyBtn');
 const clearKeyBtn         = document.getElementById('clearKeyBtn');
+const forceDownloadToggle = document.getElementById('forceDownloadToggle');
 const refreshBtn          = document.getElementById('refreshDataBtn');
 const refreshDataLabel    = document.getElementById('refreshDataLabel');
 const refreshDataProgress = document.getElementById('refreshDataProgress');
@@ -77,7 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
   updateRefreshButton();
   startTimerLoop();
 
-  // Auto-refresh con piso mínimo de 90s desde el último fetch real
   refreshIntervalId = setInterval(() => {
     const lastAny = Math.max(...UNITS.map(u => appState.lastFetchTime[u] || 0));
     if (Date.now() - lastAny < CONFIG.AUTO_REFRESH_MIN_GAP_MS) return;
@@ -94,6 +95,21 @@ function bindUiEvents() {
   overlay.addEventListener('click', cerrarSidebar);
 
   if (apiKeyInput) apiKeyInput.value = localStorage.getItem('warera_api_key') || '';
+
+  if (forceDownloadToggle) {
+    forceDownloadToggle.checked = appState.forceDownload;
+    forceDownloadToggle.addEventListener('change', (e) => {
+      appState.forceDownload = e.target.checked;
+      localStorage.setItem('warera_force_download', appState.forceDownload ? '1' : '0');
+      mostrarNotificacion(
+        appState.forceDownload
+          ? 'Capturas se descargarán como PNG.'
+          : 'Capturas usarán portapapeles o compartir.',
+        1500,
+        'success'
+      );
+    });
+  }
 
   if (saveKeyBtn) {
     saveKeyBtn.addEventListener('click', () => {
@@ -902,7 +918,11 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-async function loadImage(url, timeoutMs = 6000) {
+/**
+ * Carga una imagen lista para dibujar en <canvas>.
+ * Espera recibir una URL con CORS garantizado (por ejemplo la proxeada de warera-api).
+ */
+async function loadImage(url, timeoutMs = 8000) {
   if (!url) return null;
 
   try {
@@ -1177,7 +1197,9 @@ async function buildCaptureBlob(players) {
 
   drawListHeader(ctx, W, HEADER_H);
 
-  const avatars = await Promise.all(players.map(p => loadImage(p.avatarUrl)));
+  const avatars = await Promise.all(
+    players.map(p => loadImage(p.avatarUrlProxy || p.avatarUrl))
+  );
 
   players.forEach((p, i) => {
     const rowY = HEADER_H + i * ROW_H;
@@ -1250,7 +1272,7 @@ async function buildPlayerCaptureBlob(player) {
   ctx.fillStyle = CAPTURE.C.separator;
   ctx.fillRect(PAD, 40, W - PAD * 2, 1);
 
-  const avatarImg = await loadImage(player.avatarUrl);
+  const avatarImg = await loadImage(player.avatarUrlProxy || player.avatarUrl);
   drawAvatar(ctx, avatarImg, player, PAD + 36, 105, 36);
 
   const nameX = PAD + 90;
@@ -1268,6 +1290,7 @@ async function buildPlayerCaptureBlob(player) {
   return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
 }
 
+// ===== ENTREGA DEL BLOB (compartir / portapapeles / descarga) =====
 async function copyBlobToClipboard(blob) {
   try {
     if (navigator.clipboard && window.ClipboardItem) {
@@ -1289,6 +1312,63 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+async function deliverBlob(blob, filename) {
+  // 1) Forzar descarga si el usuario lo pidió
+  if (appState.forceDownload) {
+    downloadBlob(blob, filename);
+    return { method: 'download' };
+  }
+
+  // 2) Web Share API (móvil)
+  const file = new File([blob], filename, { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: 'Bahamas WarRoom',
+        text: 'Captura del clan'
+      });
+      return { method: 'share' };
+    } catch (e) {
+      if (e.name === 'AbortError') return { method: 'cancelled' };
+      console.warn('Share falló, probando alternativas:', e);
+    }
+  }
+
+  // 3) Portapapeles (desktop)
+  const ok = await copyBlobToClipboard(blob);
+  if (ok) return { method: 'clipboard' };
+
+  // 4) Fallback: descarga
+  downloadBlob(blob, filename);
+  return { method: 'download' };
+}
+
+function buildFilename(prefix) {
+  const ts = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '');
+  return `warroom_${prefix}_${ts}.png`;
+}
+
+function notifyDeliveryResult(result) {
+  switch (result.method) {
+    case 'share':
+      mostrarNotificacion('Captura lista para compartir.', 1800, 'success');
+      break;
+    case 'cancelled':
+      // Silencioso — el usuario simplemente canceló
+      break;
+    case 'clipboard':
+      mostrarNotificacion('Captura copiada al portapapeles.', 2000, 'success');
+      break;
+    case 'download':
+      mostrarNotificacion('Captura descargada.', 2000, 'success');
+      break;
+    case 'error':
+      mostrarNotificacion('Error generando la captura.', 2500, 'error');
+      break;
+  }
+}
+
 async function copyCurrentCapture() {
   const players = getFilteredAndSortedPlayers();
   if (players.length === 0) {
@@ -1304,17 +1384,12 @@ async function copyCurrentCapture() {
     const blob = await buildCaptureBlob(players);
     if (!blob) throw new Error('toBlob devolvió null');
 
-    const ok = await copyBlobToClipboard(blob);
-    if (ok) {
-      mostrarNotificacion('Captura copiada al portapapeles.', 2000, 'success');
-    } else {
-      const ts = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '');
-      downloadBlob(blob, `warroom_${appState.selectedUnit.toLowerCase()}_${ts}.png`);
-      mostrarNotificacion('Portapapeles no disponible. Descargando…', 2500, 'error');
-    }
+    const filename = buildFilename(appState.selectedUnit.toLowerCase());
+    const result = await deliverBlob(blob, filename);
+    notifyDeliveryResult(result);
   } catch (e) {
     console.error('Error generando captura:', e);
-    mostrarNotificacion('Error generando la captura.', 2500, 'error');
+    notifyDeliveryResult({ method: 'error' });
   } finally {
     copyCaptureBtn.disabled = false;
     copyCaptureBtn.textContent = original;
@@ -1326,17 +1401,12 @@ async function copyPlayerCapture(player) {
     const blob = await buildPlayerCaptureBlob(player);
     if (!blob) throw new Error('toBlob devolvió null');
 
-    const ok = await copyBlobToClipboard(blob);
-    if (ok) {
-      mostrarNotificacion(`Captura de ${player.name} copiada.`, 1800, 'success');
-    } else {
-      const ts = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '');
-      downloadBlob(blob, `warroom_${player.name.replace(/\s+/g, '_')}_${ts}.png`);
-      mostrarNotificacion('Portapapeles no disponible. Descargando…', 2500, 'error');
-    }
+    const filename = buildFilename(player.name.replace(/\s+/g, '_'));
+    const result = await deliverBlob(blob, filename);
+    notifyDeliveryResult(result);
   } catch (e) {
     console.error('Error generando ficha:', e);
-    mostrarNotificacion('Error generando la captura.', 2500, 'error');
+    notifyDeliveryResult({ method: 'error' });
   }
 }
 
