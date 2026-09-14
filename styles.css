@@ -26,6 +26,8 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+[hidden] { display: none !important; }
+
 body {
   min-height: 100vh;
   background: hsl(0 0% 6%);
@@ -181,6 +183,7 @@ hr { border: 0; border-top: 1px solid var(--border-color); margin: 0.5rem 0; }
   flex-wrap: wrap;
   gap: 1rem 1.5rem;
   align-items: center;
+  justify-content: center;
   background-color: var(--bg-secondary);
   padding: 1rem 1.5rem;
   border-radius: 8px;
@@ -213,13 +216,22 @@ hr { border: 0; border-top: 1px solid var(--border-color); margin: 0.5rem 0; }
   font-weight: bold;
 }
 
+/* ===== FILA DE TOGGLES CENTRADA ===== */
+.toggles-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  align-items: center;
+  justify-content: center;
+  flex: 1 0 100%;
+}
+
 /* ===== PRIORIDAD TÁCTICA ===== */
 .tactical-group {
   background: rgba(239, 68, 68, 0.05);
   padding: 0.4rem 0.8rem;
   border-radius: 8px;
   border: 1px solid rgba(239, 68, 68, 0.2);
-  margin-left: auto;
   animation: tacticalPulse 2.4s ease-in-out infinite;
 }
 @keyframes tacticalPulse {
@@ -870,23 +882,28 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
   .credentials-bar { justify-content: center; width: 100%; }
   .controls-panel {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     gap: 1rem;
     padding: 1rem;
   }
   .control-group {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
     width: 100%;
   }
   .segmented-control { width: 100%; display: flex; }
   .segmented-btn { flex: 1; text-align: center; padding: 0.5rem; }
-  .tactical-group {
-    margin-left: 0;
-    width: 100%;
-    justify-content: space-between;
-    flex-direction: row;
+  .toggles-row {
+    flex-direction: column;
     align-items: center;
+    gap: 0.8rem;
+  }
+  .tactical-group,
+  .damage-toggle-group,
+  .damage-regen-group {
+    width: auto;
+    justify-content: center;
   }
   .sidebar { width: 100%; right: -100%; }
   .sidebar.open { right: 0; }
@@ -939,4 +956,421 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
   .mini-card { padding: 0.4rem; gap: 0.25rem; }
   .mini-avatar { width: 18px; height: 18px; }
   .mini-name { font-size: 0.68rem; }
+}
+
+/* ===== CONTROLES DEL SIMULADOR DE DAÑO ===== */
+.damage-toggle-group,
+.damage-regen-group {
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+}
+
+.damage-toggle-group {
+  background: rgba(245, 158, 11, 0.05);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.damage-regen-group {
+  background: rgba(0, 177, 255, 0.05);
+  border: 1px solid rgba(0, 177, 255, 0.2);
+  gap: 0.4rem;
+}
+
+.damage-label {
+  font-size: 0.85rem;
+  color: #fbbf24;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.damage-label-secondary {
+  font-size: 0.8rem;
+  color: #7dd3fc;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+input:checked + .slider.damage-slider {
+  background-color: #f59e0b;
+  border-color: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+}
+
+input:checked + .slider.damage-slider-secondary {
+  background-color: #00b1ff;
+  border-color: #00b1ff;
+  box-shadow: 0 0 8px rgba(0, 177, 255, 0.5);
+}
+
+.bonus-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-left: 0.3rem;
+}
+
+.bonus-input {
+  width: 58px;
+  padding: 0.3rem 0.4rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  text-align: center;
+  font-family: monospace;
+  font-weight: bold;
+}
+
+.bonus-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.bonus-suffix {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+/* ===== ESTADO DESHABILITADO DEL GRUPO "CONTAR REGEN" ===== */
+.damage-regen-group.disabled {
+  opacity: 0.45;
+  filter: grayscale(60%);
+  pointer-events: none;
+}
+
+.damage-regen-group.disabled .damage-label-secondary {
+  color: var(--text-secondary);
+}
+
+/* ===== PANEL DE DAÑO POTENCIAL ===== */
+.damage-panel {
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  overflow: hidden;
+}
+
+.damage-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  background: rgba(245, 158, 11, 0.05);
+  flex-wrap: wrap;
+}
+
+.damage-panel.collapsed .damage-panel-header {
+  border-bottom: none;
+}
+
+.damage-panel.collapsed .damage-panel-body {
+  display: none !important;
+}
+
+.damage-panel:not(.collapsed) .damage-panel-header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.damage-panel-title {
+  font-weight: bold;
+  color: #fbbf24;
+  letter-spacing: 0.6px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  flex: 1;
+}
+
+.damage-panel-total-value {
+  color: #22c55e;
+  font-family: monospace;
+  font-size: 1.05rem;
+  margin-left: 0.3rem;
+}
+
+.damage-panel-meta {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-family: monospace;
+}
+
+.damage-panel-toggle {
+  background: transparent;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+}
+
+.damage-panel-toggle:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.6);
+}
+
+.damage-panel.collapsed .damage-panel-body {
+  display: none !important;
+}
+
+.damage-panel-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.damage-card {
+  display: grid;
+  grid-template-columns: minmax(70px, 1.2fr) 60px minmax(120px, 1.6fr) 70px;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.82rem;
+}
+
+.damage-card:nth-child(odd) {
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.damage-card-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.damage-card-time {
+  color: #fbbf24;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 0.78rem;
+}
+
+.damage-card-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.damage-card-stat {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.68rem;
+}
+
+.damage-card-stat .stat-label {
+  color: var(--text-secondary);
+  font-weight: bold;
+  font-family: monospace;
+}
+
+.damage-card-stat .stat-value {
+  color: var(--text-primary);
+  font-family: monospace;
+  font-weight: bold;
+}
+
+.damage-card-stat .stat-bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.damage-card-stat .stat-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.damage-card-stat .stat-bar-fill.hp { background-color: #22c55e; }
+.damage-card-stat .stat-bar-fill.fd { background-color: #f97316; }
+
+.damage-card-dmg {
+  text-align: right;
+  color: #22c55e;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .damage-panel-body {
+    grid-template-columns: 1fr;
+  }
+  .damage-card {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto;
+    gap: 0.3rem 0.6rem;
+    padding: 0.6rem 0.9rem;
+  }
+  .damage-card:nth-child(odd) {
+    border-right: none;
+  }
+  .damage-card-name {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .damage-card-time {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: right;
+  }
+  .damage-card-stats {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .damage-card-dmg {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    text-align: left;
+  }
+}
+
+/* ===== PANEL DE DEBUFF PRÓXIMO A EXPIRAR ===== */
+.debuff-panel {
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.25);
+  animation: debuffPulse 2s ease-in-out infinite;
+}
+
+@keyframes debuffPulse {
+  0%, 100% {
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.25);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 0.9);
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.55);
+  }
+}
+
+.debuff-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+  flex-wrap: wrap;
+}
+
+.debuff-panel-title {
+  font-weight: bold;
+  color: #fca5a5;
+  letter-spacing: 0.6px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.debuff-panel-meta {
+  color: #f87171;
+  font-size: 0.78rem;
+  font-family: monospace;
+  font-weight: bold;
+}
+
+.debuff-panel-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+}
+
+.debuff-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 4px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.debuff-card img {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.debuff-card-name {
+  color: #fecaca;
+  font-weight: 600;
+  max-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debuff-card-time {
+  color: #fca5a5;
+  font-family: monospace;
+  font-weight: bold;
+}
+
+/* ===== DAÑO POTENCIAL EN VISTAS ===== */
+
+/* Tabla: nueva columna */
+.vista-tabla .damage-th {
+  text-align: right;
+  width: 110px;
+}
+
+.vista-tabla .damage-cell {
+  text-align: right;
+  color: #22c55e;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* Tarjetas: badge a la derecha del status-row */
+.tarjeta-usuario .status-row .damage-badge {
+  margin-left: auto;
+  color: #22c55e;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 0.78rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Compacta: badge a la derecha del mini-status */
+.mini-status .damage-mini {
+  margin-left: auto;
+  color: #22c55e;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 0.62rem;
+  white-space: nowrap;
 }

@@ -1,6 +1,13 @@
 /**
  * Bahamas WarRoom — Capa de acceso a la API de Warera.
+ * Expone window.WareraAPI.fetchUnitPlayers(unitId)
+ *
+ * v2 — Batch tRPC: 1 request para la MU + 1 batch por cada ~40 miembros.
+ *      Antes: 1 + N requests. Ahora: 2 requests (MUs de tamaño normal).
+ *
+ * v2.1 — formatPlayer añade `combat` con stats precalculados para el simulador.
  */
+
 (function () {
   'use strict';
 
@@ -8,12 +15,10 @@
   const API_KEY_STORAGE = 'warera_api_key';
   const WAR_ATTACK_LEVEL_THRESHOLD = 2;
 
-  const REQUEST_LIMIT = {
-    CONCURRENCY: 4,
-    DELAY_BETWEEN_MS: 40
-  };
+  // Techo práctico medido: 50 OK, 100 falla con 413. Margen seguro: 40.
+  const BATCH_LIMIT = 40;
 
-  // Proxy de imágenes con CORS garantizado (necesario para canvas).
+  // Proxy de imágenes con CORS garantizado (para canvas / capturas).
   const IMAGE_PROXY = 'https://wsrv.nl/';
 
   function getApiKey() {
@@ -21,17 +26,14 @@
     catch { return ''; }
   }
 
-  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
   function buildProxyUrl(url) {
     if (!url) return url;
     const params = new URLSearchParams({
       url: url,
-      w: '400',
-      h: '400',
+      w: '200',
+      h: '200',
       fit: 'cover',
-      output: 'png',
-      n: '-1'
+      output: 'png'
     });
     return `${IMAGE_PROXY}?${params.toString()}`;
   }
@@ -44,88 +46,104 @@
     }
   }
 
-  async function post(path, body) {
+  function chunk(arr, size) {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  }
+
+  async function callBatch(procedures, body) {
+    const url = `${API_BASE}/${procedures.join(',')}?batch=1`;
+
     const headers = { 'Content-Type': 'application/json' };
     const key = getApiKey();
     if (key) headers['X-API-Key'] = key;
 
-    const res = await fetch(`${API_BASE}/${path}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body)
-    });
-
-    if (res.status === 429) throw new RateLimitError(`Rate limited en ${path}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status} en ${path}`);
-    return res.json();
-  }
-
-  async function fetchUnitMembers(unitId) {
-    const json = await post('mu.getById', { muId: unitId });
-    const members = json?.result?.data?.members;
-    if (!Array.isArray(members)) throw new Error('Respuesta inválida de mu.getById');
-    return members;
-  }
-
-  async function fetchUser(userId) {
+    let res;
     try {
-      const json = await post('user.getUserById', { userId });
-      const data = json?.result?.data;
-      if (!data) {
-        console.warn(`[Warera] Usuario ${userId} devolvió data null`);
-        throw new Error(`Usuario ${userId} sin datos`);
-      }
-      return data;
+      res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
     } catch (e) {
-      if (e.name !== 'RateLimitError') {
-        console.warn(`[Warera] Falló user ${userId}: ${e.message}`);
-      }
-      throw e;
+      throw new Error(`Fallo de red: ${e.message}`);
     }
+
+    if (res.status === 429) {
+      throw new RateLimitError(`Rate limit en batch (${procedures.length} procedimientos)`);
+    }
+    // 200 = todo OK · 207 = parcial (algunos items con error)
+    if (res.status !== 200 && res.status !== 207) {
+      throw new Error(`HTTP ${res.status} en batch`);
+    }
+
+    let json;
+    try { json = await res.json(); }
+    catch { throw new Error('Respuesta no-JSON del servidor'); }
+
+    if (!Array.isArray(json)) {
+      throw new Error('Respuesta batch inválida (no es array)');
+    }
+    return json;
   }
 
-  async function fetchUsersBatch(memberIds) {
-    const results = new Array(memberIds.length);
-    let cursor = 0;
-    let rateLimited = false;
+  async function fetchUnitWithMembers(unitId) {
+    // --- Request 1: la MU ---
+    const muJson = await callBatch(['mu.getById'], { 0: { muId: unitId } });
+    const muData = muJson[0]?.result?.data;
 
-    async function worker() {
-      while (true) {
-        if (rateLimited) return;
-        const i = cursor++;
-        if (i >= memberIds.length) return;
+    if (!muData || !Array.isArray(muData.members)) {
+      throw new Error('Respuesta inválida de mu.getById');
+    }
 
-        try {
-          const user = await fetchUser(memberIds[i]);
-          results[i] = { status: 'fulfilled', value: user };
-        } catch (e) {
-          results[i] = { status: 'rejected', reason: e, id: memberIds[i] };
-          if (e.name === 'RateLimitError') {
-            rateLimited = true;
-            return;
-          }
+    const memberIds = muData.members;
+    if (memberIds.length === 0) {
+      return { mu: muData, members: [], failuresDetail: [] };
+    }
+
+    // --- Requests 2..K: batches de getUserLite ---
+    const members = [];
+    const failuresDetail = [];
+    const batches = chunk(memberIds, BATCH_LIMIT);
+
+    for (const ids of batches) {
+      const procedures = ids.map(() => 'user.getUserLite');
+      const body = Object.fromEntries(ids.map((id, i) => [i, { userId: id }]));
+
+      let results;
+      try {
+        results = await callBatch(procedures, body);
+      } catch (e) {
+        for (const id of ids) {
+          failuresDetail.push({
+            id,
+            reason: e.message,
+            isRateLimit: e.name === 'RateLimitError'
+          });
         }
-        await sleep(REQUEST_LIMIT.DELAY_BETWEEN_MS);
+        if (e.name === 'RateLimitError') break;
+        continue;
+      }
+
+      for (let i = 0; i < ids.length; i++) {
+        const r = results[i];
+        if (r?.result?.data) {
+          members.push(r.result.data);
+        } else {
+          failuresDetail.push({
+            id: ids[i],
+            reason: r?.error?.message ? String(r.error.message).slice(0, 200) : 'Sin datos',
+            isRateLimit: false
+          });
+        }
       }
     }
 
-    const workerCount = Math.min(REQUEST_LIMIT.CONCURRENCY, memberIds.length);
-    await Promise.all(Array.from({ length: workerCount }, () => worker()));
-
-    for (let i = 0; i < results.length; i++) {
-      if (!results[i]) {
-        results[i] = { status: 'rejected', reason: new Error('No procesado'), id: memberIds[i] };
-      }
-    }
-
-    return { results, rateLimited };
+    return { mu: muData, members, failuresDetail };
   }
 
   function formatPlayer(user, now) {
-    const healthVal = user.skills?.health?.currentBarValue ?? 0;
-    const healthMax = user.skills?.health?.total           ?? 100;
-    const hungerVal = user.skills?.hunger?.currentBarValue ?? 0;
-    const hungerMax = user.skills?.hunger?.total           ?? 10;
+    const healthVal  = user.skills?.health?.currentBarValue ?? 0;
+    const healthMax  = user.skills?.health?.total           ?? 100;
+    const hungerVal  = user.skills?.hunger?.currentBarValue ?? 0;
+    const hungerMax  = user.skills?.hunger?.total           ?? 10;
 
     const attackLevel = user.skills?.attack?.level ?? 0;
     const modo = attackLevel > WAR_ATTACK_LEVEL_THRESHOLD ? 'WAR' : 'ECO';
@@ -153,6 +171,18 @@
       || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=334155&color=fff`;
     const avatarUrlProxy = buildProxyUrl(avatarUrl);
 
+    // Stats de combate precalculadas por el servidor (ya incluyen gear + buff + rank).
+    const combat = {
+      attack:         user.skills?.attack?.total           ?? 0,
+      precision:      user.skills?.precision?.total        ?? 0,
+      criticalChance: user.skills?.criticalChance?.total   ?? 0,
+      criticalDamages:user.skills?.criticalDamages?.total  ?? 0,
+      armor:          user.skills?.armor?.total            ?? 0,
+      dodge:          user.skills?.dodge?.total            ?? 0,
+      regenHP:        user.skills?.health?.hourlyBarRegen  ?? 0,
+      regenHunger:    user.skills?.hunger?.hourlyBarRegen  ?? 0
+    };
+
     return {
       id: user._id,
       name: user.username,
@@ -166,49 +196,34 @@
       pillEndTime,
       pillRemainingMs,
       modo,
-      isCombatReady: healthVal > 0 && hungerVal > 0
+      isCombatReady: healthVal > 0 && hungerVal > 0,
+      combat
     };
   }
 
   async function fetchUnitPlayers(unitId) {
-    const memberIds = await fetchUnitMembers(unitId);
-    if (memberIds.length === 0) {
-      return { players: [], failures: 0, total: 0, rateLimited: false, failuresDetail: [] };
-    }
-
     const now = Date.now();
-    const { results, rateLimited } = await fetchUsersBatch(memberIds);
+    const { members, failuresDetail } = await fetchUnitWithMembers(unitId);
 
-    const players = [];
-    const failuresDetail = [];
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i];
-      if (r.status === 'fulfilled') {
-        players.push(formatPlayer(r.value, now));
-      } else {
-        failuresDetail.push({
-          id: r.id,
-          reason: r.reason?.message || 'desconocido',
-          isRateLimit: r.reason?.name === 'RateLimitError'
-        });
-      }
+    const players = members.map(u => formatPlayer(u, now));
+    const total   = players.length + failuresDetail.length;
+    const rateLimited = failuresDetail.some(f => f.isRateLimit);
+
+    if (players.length === 0 && total > 0) {
+      if (rateLimited) throw new RateLimitError('Límite alcanzado sin datos');
+      throw new Error('No se pudo cargar ningún miembro de la unidad');
     }
 
     if (failuresDetail.length > 0) {
-      console.group(`[Warera] ${unitId}: ${players.length}/${memberIds.length} cargados`);
+      console.group(`[Warera] ${unitId}: ${players.length}/${total} cargados`);
       console.table(failuresDetail);
       console.groupEnd();
-    }
-
-    if (players.length === 0) {
-      if (rateLimited) throw new RateLimitError('Límite alcanzado sin datos');
-      throw new Error('No se pudo cargar ningún miembro de la unidad');
     }
 
     return {
       players,
       failures: failuresDetail.length,
-      total: memberIds.length,
+      total,
       rateLimited,
       failuresDetail
     };

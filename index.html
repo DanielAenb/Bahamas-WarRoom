@@ -104,18 +104,49 @@
         </div>
       </div>
 
-      <div class="control-group tactical-group">
-        <span class="toggle-label">🚨 Prioridad Táctica</span>
-        <div class="tooltip" tabindex="0" role="button"
-             aria-label="Información sobre prioridad táctica">?
-          <span class="tooltiptext">
-            Muestra SOLO usuarios con BUFF. Ordenados por urgencia de tiempo de buff, vida y hambre.
-          </span>
+      <div class="toggles-row">
+        <div class="control-group tactical-group">
+          <span class="toggle-label">🚨 Prioridad Táctica</span>
+          <div class="tooltip" tabindex="0" role="button"
+               aria-label="Información sobre prioridad táctica">?
+            <span class="tooltiptext">
+              Muestra SOLO usuarios con BUFF. Ordenados por urgencia de tiempo de buff, vida y hambre.
+            </span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="smartSortToggle">
+            <span class="slider round"></span>
+          </label>
         </div>
-        <label class="switch">
-          <input type="checkbox" id="smartSortToggle">
-          <span class="slider round"></span>
-        </label>
+
+        <div class="control-group damage-toggle-group" id="damageToggleGroup" hidden>
+          <span class="toggle-label damage-label">💥 Daño Potencial</span>
+          <label class="switch">
+            <input type="checkbox" id="damageToggle">
+            <span class="slider round damage-slider"></span>
+          </label>
+          <span class="bonus-label">Bonus:</span>
+          <input type="number" id="battleBonusInput" min="0" max="200" step="5" value="30"
+                 class="bonus-input" inputmode="numeric" title="Battle bonus en %">
+          <span class="bonus-suffix">%</span>
+        </div>
+
+        <div class="control-group damage-regen-group" id="damageRegenGroup" hidden>
+          <span class="toggle-label damage-label-secondary">♻️ Contar Regen</span>
+          <label class="switch">
+            <input type="checkbox" id="contarRegenToggle">
+            <span class="slider round damage-slider-secondary"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section id="damagePanel" class="damage-panel" hidden>
+      <div class="damage-panel-header">
+        <span class="damage-panel-title">
+          💥 DAÑO POTENCIAL: <span id="damagePanelTotal" class="damage-panel-total-value">0</span>
+        </span>
+        <span class="damage-panel-meta" id="damagePanelMeta"></span>
       </div>
     </section>
 
@@ -124,6 +155,14 @@
     </div>
 
     <main class="table-container" id="usersContainer"></main>
+
+    <section id="debuffPanel" class="debuff-panel" hidden>
+      <div class="debuff-panel-header">
+        <span class="debuff-panel-title">⚠️ PRÓXIMOS A SALIR DE DEBUFF</span>
+        <span class="debuff-panel-meta" id="debuffPanelMeta"></span>
+      </div>
+      <div class="debuff-panel-body" id="debuffPanelBody"></div>
+    </section>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite">
