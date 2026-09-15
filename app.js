@@ -794,7 +794,7 @@ function renderDebuffPanel() {
       const shortName = p.name.length > 14 ? p.name.slice(0, 13) + '…' : p.name;
       return `
         <div class="debuff-card" data-copy-player="${p.id}">
-          <img src="${p.avatarUrl}" alt="" loading="lazy"
+          <img src="${p.avatarUrl}" alt="" loading="lazy" data-avatar-player="${p.id}"
                onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=334155&color=fff'">
           <span class="debuff-card-name" title="${safeName}">${escapeHtml(shortName)}</span>
           <span class="debuff-card-time" data-player-id="${p.id}">${formatTimer(p.pillRemainingMs)}</span>
@@ -878,7 +878,7 @@ function renderTabla(players) {
       <tr class="${rowClass}" data-copy-player="${p.id}" style="animation-delay: ${index * 0.05}s">
         <td>
           <div class="player-info">
-            <img src="${p.avatarUrl}" class="avatar" alt="" loading="lazy"
+            <img src="${p.avatarUrl}" class="avatar" alt="" loading="lazy" data-avatar-player="${p.id}"
                  onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${safeName}&background=334155&color=fff'">
             <strong>${p.name}</strong>
           </div>
@@ -935,7 +935,7 @@ function renderTarjetas(players) {
     return `
       <div class="tarjeta-usuario ${estadoClass}" data-copy-player="${p.id}" style="animation-delay: ${index * 0.05}s">
         <div class="player-info">
-          <img src="${p.avatarUrl}" class="avatar" alt="" loading="lazy"
+          <img src="${p.avatarUrl}" class="avatar" alt="" loading="lazy" data-avatar-player="${p.id}"
                onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${safeName}&background=334155&color=fff'">
           <span class="player-name">${p.name}</span>
           ${modoBadge}
@@ -986,7 +986,7 @@ function renderCompacta(players) {
     return `
       <div class="mini-card ${estadoClass}" data-copy-player="${p.id}" style="animation-delay: ${index * 0.02}s">
         <div class="mini-top">
-          <img src="${p.avatarUrl}" class="mini-avatar" alt="" loading="lazy"
+          <img src="${p.avatarUrl}" class="mini-avatar" alt="" loading="lazy" data-avatar-player="${p.id}"
                onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${safeName}&background=334155&color=fff'">
           <span class="mini-name" title="${p.name}">${shortName}</span>
         </div>
@@ -1660,18 +1660,66 @@ async function copyPlayerCapture(player) {
   }
 }
 
-// ===== PRESS-AND-HOLD =====
+// ================================================================
+// ===== PRESS-AND-HOLD CON SPINNER SVG ===========================
+// ================================================================
+
 let pressState = null;
 let holdSpinnerEl = null;
 
+const SPINNER_RADIUS = 22;
+const SPINNER_CIRCUMFERENCE = 2 * Math.PI * SPINNER_RADIUS;
+
 function initPressToCapture() {
   const MOVE_TOLERANCE = 10;
+
+  // Spinner SVG: círculo hueco con trazo que se rellena en sentido horario
   holdSpinnerEl = document.createElement('div');
   holdSpinnerEl.className = 'hold-spinner';
+  holdSpinnerEl.innerHTML = `
+    <svg viewBox="0 0 52 52" width="52" height="52" aria-hidden="true">
+      <circle class="spinner-track"
+              cx="26" cy="26" r="${SPINNER_RADIUS}"
+              fill="none"
+              stroke="rgba(255,255,255,0.15)"
+              stroke-width="3"></circle>
+      <circle class="spinner-ring"
+              cx="26" cy="26" r="${SPINNER_RADIUS}"
+              fill="none"
+              stroke="#00b1ff"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-dasharray="${SPINNER_CIRCUMFERENCE}"
+              stroke-dashoffset="${SPINNER_CIRCUMFERENCE}"
+              transform="rotate(-90 26 26)"></circle>
+    </svg>
+  `;
   document.body.appendChild(holdSpinnerEl);
 
   document.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+    // 1) Click directo sobre un avatar → captura inmediata
+    const avatar = e.target.closest('[data-avatar-player]');
+    if (avatar) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const id = avatar.dataset.avatarPlayer;
+      const player = appState.playersById.get(id);
+      if (!player) return;
+
+      const card = avatar.closest('[data-copy-player]');
+      if (card) {
+        card.classList.add('capture-flash');
+        setTimeout(() => card.classList.remove('capture-flash'), 600);
+      }
+
+      copyPlayerCapture(player);
+      return;
+    }
+
+    // 2) Press-and-hold sobre la tarjeta/fila (no-avatar)
     const card = e.target.closest('[data-copy-player]');
     if (!card) return;
     startPress(card, e.clientX, e.clientY);
@@ -1700,16 +1748,28 @@ function startPress(card, x, y) {
   const playerId = card.dataset.copyPlayer;
   const player = appState.playersById.get(playerId);
   if (!player) return;
+
   card.classList.add('pressing');
   card.style.setProperty('--progress', '0%');
+
   showHoldSpinner(x, y);
+
   const startTime = performance.now();
+  const ringEl = holdSpinnerEl ? holdSpinnerEl.querySelector('.spinner-ring') : null;
+
   const tick = (now) => {
     if (!pressState || pressState.card !== card) return;
     const elapsed = now - startTime;
     const progress = Math.min(1, elapsed / CONFIG.HOLD_MS);
+
+    // Borde de la tarjeta (progreso interno)
     card.style.setProperty('--progress', (progress * 100) + '%');
-    if (holdSpinnerEl) holdSpinnerEl.style.setProperty('--progress', (progress * 100) + '%');
+
+    // Anillo del spinner (relleno horario)
+    if (ringEl) {
+      ringEl.style.strokeDashoffset = String(SPINNER_CIRCUMFERENCE * (1 - progress));
+    }
+
     if (progress >= 1) {
       const p = pressState.player;
       cancelPress();
@@ -1720,6 +1780,7 @@ function startPress(card, x, y) {
     }
     pressState.rafId = requestAnimationFrame(tick);
   };
+
   pressState = { card, player, startX: x, startY: y, rafId: requestAnimationFrame(tick) };
 }
 
@@ -1736,7 +1797,13 @@ function showHoldSpinner(x, y) {
   if (!holdSpinnerEl) return;
   holdSpinnerEl.style.left = x + 'px';
   holdSpinnerEl.style.top = y + 'px';
-  holdSpinnerEl.style.setProperty('--progress', '0%');
+
+  const ringEl = holdSpinnerEl.querySelector('.spinner-ring');
+  if (ringEl) {
+    ringEl.style.transition = 'none';
+    ringEl.style.strokeDashoffset = String(SPINNER_CIRCUMFERENCE);
+  }
+
   holdSpinnerEl.style.display = 'block';
   void holdSpinnerEl.offsetWidth;
   holdSpinnerEl.classList.add('visible');
@@ -1748,6 +1815,8 @@ function hideHoldSpinner() {
   setTimeout(() => {
     if (holdSpinnerEl && !holdSpinnerEl.classList.contains('visible')) {
       holdSpinnerEl.style.display = 'none';
+      const ringEl = holdSpinnerEl.querySelector('.spinner-ring');
+      if (ringEl) ringEl.style.strokeDashoffset = String(SPINNER_CIRCUMFERENCE);
     }
   }, 200);
 }

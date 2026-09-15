@@ -783,7 +783,7 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
 }
 .vista-tabla tbody tr.pressing::after { border-radius: 0; }
 
-/* ===== RUEDA DE CARGA EN PULSACIÓN LARGA ===== */
+/* ===== RUEDA DE CARGA EN PULSACIÓN LARGA (SVG) ===== */
 .hold-spinner {
   position: fixed;
   width: 52px;
@@ -791,32 +791,33 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
   border-radius: 50%;
   pointer-events: none;
   z-index: 9999;
-  background: rgba(10, 10, 10, 0.78);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+  background: transparent;
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.6);
   transition: opacity 0.14s ease, transform 0.14s ease;
   display: none;
 }
+
 .hold-spinner.visible {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
 }
-.hold-spinner::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(
-    from -90deg,
-    #00b1ff 0%,
-    #00b1ff var(--progress, 0%),
-    rgba(255, 255, 255, 0.18) var(--progress, 0%),
-    rgba(255, 255, 255, 0.18) 100%
-  );
-  -webkit-mask: radial-gradient(circle, transparent 78%, black 82%);
-  mask: radial-gradient(circle, transparent 78%, black 82%);
+
+.hold-spinner svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 6px rgba(0, 177, 255, 0.5));
 }
+
+.hold-spinner .spinner-track {
+  /* anillo base gris */
+}
+
+.hold-spinner .spinner-ring {
+  /* se anima via JS con stroke-dashoffset */
+}
+
 
 /* ===== BOTÓN REFRESH CON PROGRESO ===== */
 .refresh-btn {
