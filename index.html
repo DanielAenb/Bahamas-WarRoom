@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="only dark">
   <title>Bahamas WarRoom</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -66,8 +69,6 @@
         <h1>BAHAMAS <span>WARROOM</span></h1>
       </div>
       <div class="credentials-bar">
-        <button id="openApiBtn" class="icon-btn" title="Configuraciones" aria-label="Abrir configuraciones">⚙️</button>
-        <button id="copyCaptureBtn" class="icon-btn" title="Capturar" aria-label="Capturar">📸</button>
         <div class="refresh-group">
           <span id="freshnessDot" class="freshness-dot" title="Sin datos" aria-label="Estado de frescura"></span>
           <button id="refreshDataBtn" class="btn btn-primary refresh-btn">
@@ -75,6 +76,8 @@
             <span id="refreshDataProgress" class="refresh-btn-progress"></span>
           </button>
         </div>
+        <button id="copyCaptureBtn" class="icon-btn" title="Capturar" aria-label="Capturar">📸</button>
+        <button id="openApiBtn" class="icon-btn" title="Configuraciones" aria-label="Abrir configuraciones">⚙️</button>
       </div>
     </header>
 
@@ -171,6 +174,11 @@
   </div>
 
   <script src="warera-api.js"></script>
+  <script src="warera-utils.js"></script>
+  <script src="warera-damage.js"></script>
+  <script src="warera-capture.js"></script>
+  <script src="warera-press.js"></script>
+  <script src="warera-render.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
