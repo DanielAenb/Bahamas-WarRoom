@@ -64,16 +64,28 @@ body {
 .brand span { color: var(--accent-color); }
 .credentials-bar { display: flex; align-items: center; gap: 1rem; }
 .refresh-group { display: flex; align-items: center; gap: 0.6rem; }
+
 .icon-btn {
   background: transparent;
   border: none;
-  font-size: 1.6rem;
   cursor: pointer;
   transition: transform 0.2s, opacity 0.2s;
   color: var(--text-primary);
-  line-height: 1;
   padding: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
+.icon-btn svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  display: block;
+}
+
 .icon-btn:hover { transform: scale(1.1); }
 .icon-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
@@ -1221,4 +1233,191 @@ input:checked + .slider.damage-slider-secondary {
   font-weight: bold;
   font-size: 0.62rem;
   white-space: nowrap;
+}
+
+/* ============================================================
+   HUD DE CONTRATO ACTIVO
+   ============================================================ */
+.hud {
+  position: relative;
+  display: flex;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  min-height: 100px;
+  --age-color: #22c55e;
+}
+
+.hud-age-bar {
+  width: 6px;
+  background: var(--age-color);
+  flex-shrink: 0;
+  transition: background 0.5s ease;
+  box-shadow: 0 0 12px -2px var(--age-color);
+}
+
+.hud-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem 1.25rem;
+  min-width: 0;
+}
+
+.hud-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.hud-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.1rem;
+}
+
+.hud-battle-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-link {
+  color: var(--accent-color);
+  text-decoration: none;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.hud-link:hover { transform: scale(1.15); }
+
+.hud-detected {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.hud-timer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.hud-timer-icon {
+  font-size: 0.85rem;
+  filter: hue-rotate(-15deg) brightness(1.2);
+  flex-shrink: 0;
+}
+
+.hud-timer-text {
+  font-size: 0.8rem;
+  color: #fbbf24;
+  font-weight: 600;
+  font-style: italic;
+}
+
+.hud-stats {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.hud-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-width: 60px;
+}
+
+.hud-stat-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.hud-stat-value {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+.hud-stat-value.payout { color: #fbbf24; }
+
+.hud-complete {
+  flex-shrink: 0;
+  padding: 0.85rem 1.5rem;
+  background: #22c55e;
+  color: #052e16;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.15s, filter 0.15s;
+  box-shadow: 0 4px 12px -4px rgba(34, 197, 94, 0.6);
+}
+.hud-complete:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+.hud-complete:active { transform: translateY(0); }
+
+.hud-progress {
+  position: absolute;
+  left: 6px;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+.hud-progress-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  border-radius: 0 3px 3px 0;
+  transition: width 1s linear;
+  box-shadow: 0 0 8px -2px #fbbf24;
+}
+.hud-progress-fill.danger {
+  background: linear-gradient(90deg, #dc2626, #f87171);
+  box-shadow: 0 0 8px -2px #ef4444;
+}
+
+@media (max-width: 768px) {
+  .hud-body {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  .hud-stats {
+    gap: 1rem;
+    padding: 0.6rem 0.75rem;
+    justify-content: space-between;
+  }
+  .hud-stat { flex: 1; min-width: 0; }
+  .hud-stat-value { font-size: 0.95rem; }
+  .hud-complete {
+    width: 100%;
+    padding: 0.75rem;
+  }
 }

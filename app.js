@@ -62,7 +62,8 @@ const appState = {
   forceDownload: localStorage.getItem('warera_force_download') === '1',
   damagePanelActive: false,
   contarRegen: loadContarRegenState(),
-  battleBonus: loadBattleBonusState()
+  battleBonus: loadBattleBonusState(),
+  contractsHudEnabled: localStorage.getItem('warera_contracts_hud_enabled') !== '0'
 };
 
 const sidebar             = document.getElementById('apiSidebar');
@@ -165,6 +166,24 @@ function initModules() {
     debuffPanelMeta,
     debuffPanelBody
   });
+
+  WareraContractsHud.init({
+    getMuId: () => appState.selectedUnit === 'Uchiha' ? CONFIG.UNIT_UCHIHA_ID : CONFIG.UNIT_AKATSUKI_ID,
+    getEnabled: () => appState.contractsHudEnabled,
+    els: {
+      hud:          document.getElementById('contractsHud'),
+      ageBar:       document.getElementById('contractsHudAgeBar'),
+      battleName:   document.getElementById('contractsHudBattleName'),
+      battleLink:   document.getElementById('contractsHudBattleLink'),
+      detected:     document.getElementById('contractsHudDetected'),
+      timerText:    document.getElementById('contractsHudTimerText'),
+      minDmg:       document.getElementById('contractsHudMinDmg'),
+      payout:       document.getElementById('contractsHudPayout'),
+      perK:         document.getElementById('contractsHudPerK'),
+      completeBtn:  document.getElementById('contractsHudComplete'),
+      progressFill: document.getElementById('contractsHudProgressFill'),
+    }
+  });
 }
 
 function bindUiEvents() {
@@ -243,6 +262,7 @@ function bindUiEvents() {
       renderUsers();
       updateFreshnessIndicator();
       fetchApiData(false, appState.selectedUnit, false);
+      WareraContractsHud.refresh();
     });
   });
 
@@ -305,6 +325,16 @@ function bindUiEvents() {
 
   copyCaptureBtn.addEventListener('click', copyCurrentCapture);
   WareraPress.initPressToCapture();
+
+  const contractsHudToggle = document.getElementById('contractsHudToggle');
+  if (contractsHudToggle) {
+    contractsHudToggle.checked = appState.contractsHudEnabled;
+    contractsHudToggle.addEventListener('change', (e) => {
+      appState.contractsHudEnabled = e.target.checked;
+      localStorage.setItem('warera_contracts_hud_enabled', appState.contractsHudEnabled ? '1' : '0');
+      WareraContractsHud.refresh();
+    });
+  }
 
   let resizeTimeout;
   window.addEventListener('resize', () => {
@@ -627,6 +657,7 @@ async function refreshAllUnits(force = true, silent = false, options = {}) {
   } finally {
     if (startCooldown) refreshCooldown.until = Date.now() + CONFIG.MANUAL_COOLDOWN_MS;
     refreshInFlight = false;
+    WareraContractsHud.refresh();
     renderUsers();
     updateRefreshButton();
     updateFreshnessIndicator();
