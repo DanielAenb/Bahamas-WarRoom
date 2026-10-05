@@ -261,8 +261,11 @@ function bindUiEvents() {
       }
       renderUsers();
       updateFreshnessIndicator();
+      const newMuId = appState.selectedUnit === 'Uchiha'
+        ? CONFIG.UNIT_UCHIHA_ID
+        : CONFIG.UNIT_AKATSUKI_ID;
       fetchApiData(false, appState.selectedUnit, false);
-      WareraContractsHud.refresh();
+      WareraContractsHud.refresh(newMuId);
     });
   });
 

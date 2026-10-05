@@ -317,30 +317,45 @@
   }
 
   // ===== Refresh =====
-  async function refresh() {
+  let refreshGeneration = 0;
+
+  async function refresh(muIdOverride) {
     if (!deps) return;
     if (!deps.getEnabled()) { hideHud(); return; }
-    if (fetching) return;
-    fetching = true;
+
+    const muId = muIdOverride || deps.getMuId();
+    const generation = ++refreshGeneration;
+
+    if (!muId) { hideHud(); return; }
+
+    // Ocultar HUD actual si el contrato mostrado no es de esta MU
+    if (currentContract && currentContract.currentWinner !== muId) {
+      hideHud();
+    }
 
     try {
-      const muId = deps.getMuId();
-      if (!muId) { hideHud(); return; }
-
       const all = await fetchAllAuctions();
+
+      // Si mientras esperábamos cambió de nuevo la MU → abortar
+      if (generation !== refreshGeneration) return;
+
       const doneMap = load(LS_DONE, {});
       const mine = all.filter(c => c.currentWinner === muId && !doneMap[c._id]);
       if (!mine.length) { hideHud(); return; }
 
-      // El más reciente
       mine.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       const active = mine[0];
 
       const battleMap = await fetchBattleData(active.battle ? [active.battle] : []);
+
+      if (generation !== refreshGeneration) return;
+
       const regionIds = active.battle
         ? [battleMap.get(active.battle)?.static?.defender?.region].filter(Boolean)
         : [];
       await resolveLocations([active.forCountry], regionIds);
+
+      if (generation !== refreshGeneration) return;
 
       const est = active.battle
         ? estimateBattle(battleMap.get(active.battle), Date.now())
@@ -355,9 +370,7 @@
       renderHud(active, est);
     } catch (e) {
       console.warn('HUD refresh:', e.message);
-      hideHud();
-    } finally {
-      fetching = false;
+      if (generation === refreshGeneration) hideHud();
     }
   }
 
