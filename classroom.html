@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="only dark">
+  <title>Bahamas ClassRoom</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
+  <!-- Reutilizamos los estilos base de la WarRoom para el fondo, header, etc. -->
+  <link rel="stylesheet" href="styles.css">
+  <!-- Sobrescribimos con los estilos específicos del ClassRoom -->
+  <link rel="stylesheet" href="classroom.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <header class="header">
+      <div class="brand">
+        <h1 id="appSwitcherTrigger" style="cursor: pointer;">
+          BAHAMAS <span>CLASSROOM</span> <span class="brand-arrow">▼</span>
+        </h1>
+      </div>
+      <div class="credentials-bar">
+        <a href="index.html" class="btn btn-secondary" style="text-decoration: none;">Volver a WarRoom</a>
+      </div>
+    </header>
+
+    <section class="classroom-layout">
+      <!-- Menú de temas -->
+      <aside class="classroom-sidebar">
+        <h2 class="sidebar-title">Guías y Tutoriales</h2>
+        <nav class="topics-nav">
+          <button class="topic-btn active" data-topic="modo-war">
+            <span class="topic-icon">⚔️</span> Modo War
+          </button>
+          <button class="topic-btn" data-topic="builds">
+            <span class="topic-icon">🛠️</span> Builds
+          </button>
+        </nav>
+      </aside>
+
+      <!-- Visor de imágenes -->
+      <main class="classroom-viewer">
+        <div class="viewer-header">
+          <h2 id="viewerTitle">Modo War</h2>
+        </div>
+        
+        <div class="image-container" id="imageContainer">
+          <!-- La imagen se inyecta por JS -->
+          <div class="loading-spinner" id="loadingSpinner" hidden>Cargando imagen...</div>
+          <img id="guideImage" src="" alt="Guía" style="display: none;">
+        </div>
+      </main>
+    </section>
+  </div>
+
+  <!-- App Switcher (Menú flotante) -->
+  <div id="appSwitcherOverlay" class="app-switcher-overlay" hidden></div>
+  <div id="appSwitcherMenu" class="app-switcher-menu" hidden>
+    <button id="closeSwitcherBtn" class="app-switcher-close" aria-label="Cerrar menú">✖</button>
+    <div class="app-switcher-title">Bahamas</div>
+    <div class="app-switcher-actions">
+      <button class="app-switcher-btn" data-target="warroom">
+        <span>⚔️</span> WarRoom
+      </button>
+      <button class="app-switcher-btn active" data-target="classroom">
+        <span>📚</span> ClassRoom
+      </button>
+    </div>
+  </div>
+
+  <script src="classroom.js"></script>
+</body>
+</html>
