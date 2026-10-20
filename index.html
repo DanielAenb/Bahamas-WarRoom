@@ -82,7 +82,9 @@
   <div class="app-container">
     <header class="header">
       <div class="brand">
-        <h1>BAHAMAS <span>WARROOM</span></h1>
+        <h1 id="appSwitcherTrigger" style="cursor: pointer;">
+          BAHAMAS <span>WARROOM</span> <span class="brand-arrow">▼</span>
+        </h1>
       </div>
 
       <!-- Mensaje temporal aquí -->
@@ -123,7 +125,7 @@
         </div>
       </div>
 
-      <div class="control-group">
+      <div class="control-group" id="modeFilterGroup">
         <label>Filtrar por Modo:</label>
         <div class="segmented-control">
           <button class="segmented-btn active" data-mode="WAR">Modo WAR</button>
@@ -132,7 +134,7 @@
         </div>
       </div>
 
-      <div class="control-group">
+      <div class="control-group"  id="orderFilterGroup">
         <label>Ordenar por:</label>
         <div class="segmented-control">
           <button class="segmented-btn active" data-order="alfabetico">Alfabético</button>
@@ -240,6 +242,23 @@
   <div id="toast" class="toast" role="status" aria-live="polite">
     <span id="toastMessage">Información estratégica cargada</span>
     <div id="toastBar" class="toast-bar" style="width:100%"></div>
+  </div>
+
+    <!-- Overlay de desenfoque -->
+  <div id="appSwitcherOverlay" class="app-switcher-overlay" hidden></div>
+
+  <!-- Menú flotante -->
+  <div id="appSwitcherMenu" class="app-switcher-menu" hidden>
+    <button id="closeSwitcherBtn" class="app-switcher-close" aria-label="Cerrar menú">✖</button>
+    <div class="app-switcher-title">Bahamas</div>
+    <div class="app-switcher-actions">
+      <button class="app-switcher-btn" data-target="warroom">
+        <span>⚔️</span> WarRoom
+      </button>
+      <button class="app-switcher-btn" data-target="classroom">
+        <span>📚</span> ClassRoom
+      </button>
+    </div>
   </div>
 
   <script src="warera-api.js"></script>

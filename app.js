@@ -349,6 +349,58 @@ function bindUiEvents() {
       }
     }, 300);
   });
+
+  // ===== App Switcher (Menú Flotante) =====
+  const appSwitcherTrigger = document.getElementById('appSwitcherTrigger');
+  const appSwitcherOverlay = document.getElementById('appSwitcherOverlay');
+  const appSwitcherMenu = document.getElementById('appSwitcherMenu');
+  const closeSwitcherBtn = document.getElementById('closeSwitcherBtn');
+
+  if (appSwitcherTrigger && appSwitcherOverlay && appSwitcherMenu) {
+    const openSwitcher = () => {
+      appSwitcherOverlay.hidden = false;
+      appSwitcherMenu.hidden = false;
+      requestAnimationFrame(() => {
+        appSwitcherOverlay.classList.add('show');
+        appSwitcherMenu.classList.add('show');
+      });
+    };
+
+    const closeSwitcher = () => {
+      appSwitcherOverlay.classList.remove('show');
+      appSwitcherMenu.classList.remove('show');
+      setTimeout(() => {
+        appSwitcherOverlay.hidden = true;
+        appSwitcherMenu.hidden = true;
+      }, 250);
+    };
+
+    appSwitcherTrigger.addEventListener('click', openSwitcher);
+    closeSwitcherBtn.addEventListener('click', closeSwitcher);
+    appSwitcherOverlay.addEventListener('click', closeSwitcher);
+
+    document.querySelectorAll('.app-switcher-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.target;
+        
+        if (target === 'warroom') {
+          const path = window.location.pathname;
+          // Si ya estamos en la WarRoom (index o raíz), solo cerramos
+          if (path.endsWith('index.html') || path === '/' || path.endsWith('/')) {
+            closeSwitcher();
+          } else {
+            window.location.href = 'index.html';
+          }
+        } 
+        else if (target === 'classroom') {
+          // Abre en pestaña nueva
+          window.open('classroom.html', '_blank');
+          closeSwitcher();
+        }
+      });
+    });
+  }
+
 }
 
 function cerrarSidebar() {
@@ -689,6 +741,12 @@ function syncDamageControls() {
   const regenEnabled = smartOn && !!appState.damagePanelActive;
 
   damageToggleGroup.hidden = !smartOn;
+
+  // NUEVO: Ocultar filtros de Modo y Orden cuando SmartSort está activo
+  const modeFilterGroup = document.getElementById('modeFilterGroup');
+  const orderFilterGroup = document.getElementById('orderFilterGroup');
+  if (modeFilterGroup) modeFilterGroup.hidden = smartOn;
+  if (orderFilterGroup) orderFilterGroup.hidden = smartOn;
 
   if (damageRegenGroup) {
     damageRegenGroup.hidden = !smartOn;
