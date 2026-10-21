@@ -14,6 +14,7 @@
   const API_BASE = 'https://api2.warera.io/trpc';
   const API_KEY_STORAGE = 'warera_api_key';
   const WAR_ATTACK_LEVEL_THRESHOLD = 2;
+  const REQUEST_TIMEOUT_MS = 15000;
 
   // Techo práctico medido: 50 OK, 100 falla con 413. Margen seguro: 40.
   const BATCH_LIMIT = 40;
@@ -52,6 +53,16 @@
     return out;
   }
 
+  async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function callBatch(procedures, body) {
     const url = `${API_BASE}/${procedures.join(',')}?batch=1`;
 
@@ -61,9 +72,12 @@
 
     let res;
     try {
-      res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+      res = await fetchWithTimeout(url, { method: 'POST', headers, body: JSON.stringify(body) });
     } catch (e) {
-      throw new Error(`Fallo de red: ${e.message}`);
+      const timedOut = e.name === 'AbortError';
+      throw new Error(timedOut
+        ? `Tiempo de espera agotado (${REQUEST_TIMEOUT_MS / 1000}s)`
+        : `Fallo de red: ${e.message}`);
     }
 
     if (res.status === 429) {

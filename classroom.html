@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="only dark">
   <title>Bahamas ClassRoom</title>
+  <link rel="icon" type="image/png" href="favicon.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +21,8 @@
   <div class="app-container">
     <header class="header">
       <div class="brand">
-        <h1 id="appSwitcherTrigger" style="cursor: pointer;">
+        <h1 id="appSwitcherTrigger" style="cursor: pointer;" role="button" tabindex="0"
+            aria-haspopup="dialog" aria-expanded="false" aria-controls="appSwitcherMenu">
           BAHAMAS <span>CLASSROOM</span> <span class="brand-arrow">▼</span>
         </h1>
       </div>
@@ -52,7 +54,7 @@
         <div class="image-container" id="imageContainer">
           <!-- La imagen se inyecta por JS -->
           <div class="loading-spinner" id="loadingSpinner" hidden>Cargando imagen...</div>
-          <img id="guideImage" src="" alt="Guía" style="display: none;">
+          <img id="guideImage" src="" alt="Guía" decoding="async" style="display: none;">
         </div>
       </main>
     </section>

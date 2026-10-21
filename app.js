@@ -116,6 +116,7 @@ let pendingFetches     = 0;
 
 let rateLimitedUntil = 0;
 let refreshInFlight  = false;
+let renderDeferred    = false;
 
 const refreshCooldown = { until: 0, total: CONFIG.MANUAL_COOLDOWN_MS };
 
@@ -197,11 +198,28 @@ function initModules() {
 
 function bindUiEvents() {
   openApiBtn.addEventListener('click', () => {
+    sidebar.inert = false;
     sidebar.classList.add('open');
     overlay.classList.add('active');
+    closeApiBtn.focus();
   });
   closeApiBtn.addEventListener('click', cerrarSidebar);
   overlay.addEventListener('click', cerrarSidebar);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (sidebar.classList.contains('open')) cerrarSidebar();
+  });
+
+  // Fallback global para avatares que no cargan (sin onerror inline).
+  document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement)) return;
+    if (img.dataset.avatarFallback === '1') return;
+    img.dataset.avatarFallback = '1';
+    const name = img.alt || '?';
+    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=334155&color=fff`;
+  }, true);
 
   if (apiKeyInput) apiKeyInput.value = localStorage.getItem('warera_api_key') || '';
 
@@ -298,6 +316,16 @@ function bindUiEvents() {
 
   smartSortToggle.addEventListener('change', (e) => {
     appState.smartSort = e.target.checked;
+
+    // La prioridad táctica oculta el filtro de Modo: si se queda activo un
+    // filtro invisible (p. ej. ECO) la lista aparece vacía sin explicación.
+    if (appState.smartSort) {
+      appState.selectedMode = 'ALL';
+      document.querySelectorAll('[data-mode]').forEach(b =>
+        b.classList.toggle('active', b.dataset.mode === 'ALL')
+      );
+    }
+
     syncDamageControls();
     renderUsers();
   });
@@ -323,12 +351,19 @@ function bindUiEvents() {
 
   if (battleBonusInput) {
     battleBonusInput.addEventListener('input', (e) => {
-      const v = Math.max(0, Math.min(200, Number(e.target.value) || 0));
+      const raw = Number(e.target.value);
+      const v = Math.max(0, Math.min(200, Number.isFinite(raw) ? raw : 0));
+      // Reflejar el valor real cuando el usuario se pasa del rango.
+      if (e.target.value !== '' && raw !== v) e.target.value = String(v);
       if (v === appState.battleBonus) return;
       appState.battleBonus = v;
       saveBattleBonusState(v);
       WareraRender.renderDamagePanel();
       WareraRender.actualizarDañosEnVista();
+    });
+
+    battleBonusInput.addEventListener('blur', () => {
+      battleBonusInput.value = String(appState.battleBonus);
     });
   }
 
@@ -371,24 +406,39 @@ function bindUiEvents() {
     const openSwitcher = () => {
       appSwitcherOverlay.hidden = false;
       appSwitcherMenu.hidden = false;
+      appSwitcherTrigger.setAttribute('aria-expanded', 'true');
       requestAnimationFrame(() => {
         appSwitcherOverlay.classList.add('show');
         appSwitcherMenu.classList.add('show');
       });
+      closeSwitcherBtn.focus();
     };
 
     const closeSwitcher = () => {
+      if (appSwitcherMenu.hidden) return;
+      appSwitcherTrigger.setAttribute('aria-expanded', 'false');
       appSwitcherOverlay.classList.remove('show');
       appSwitcherMenu.classList.remove('show');
       setTimeout(() => {
         appSwitcherOverlay.hidden = true;
         appSwitcherMenu.hidden = true;
       }, 250);
+      appSwitcherTrigger.focus();
     };
 
     appSwitcherTrigger.addEventListener('click', openSwitcher);
+    appSwitcherTrigger.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openSwitcher();
+      }
+    });
     closeSwitcherBtn.addEventListener('click', closeSwitcher);
     appSwitcherOverlay.addEventListener('click', closeSwitcher);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !appSwitcherMenu.hidden) closeSwitcher();
+    });
 
     document.querySelectorAll('.app-switcher-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -463,8 +513,11 @@ function bindUiEvents() {
 }
 
 function cerrarSidebar() {
+  const wasOpen = sidebar.classList.contains('open');
   sidebar.classList.remove('open');
   overlay.classList.remove('active');
+  sidebar.inert = true;
+  if (wasOpen) openApiBtn.focus();
 }
 
 function determinarVistaAutomatica() {
@@ -564,14 +617,14 @@ function updateFreshnessIndicator() {
     return;
   }
 
-  const times = UNITS.map(u => appState.lastFetchTime[u]).filter(t => t > 0);
-  if (times.length === 0) {
+  // La frescura debe reflejar el clan que se está viendo, no el más reciente.
+  const lastFetch = appState.lastFetchTime[appState.selectedUnit] || 0;
+  if (!lastFetch) {
     freshnessDot.style.backgroundColor = '#64748b';
     freshnessDot.style.boxShadow = '0 0 8px rgba(100, 116, 139, 0.6)';
     freshnessDot.title = 'Sin datos';
     return;
   }
-  const lastFetch = Math.max(...times);
   const age = Date.now() - lastFetch;
   const ratio = Math.min(1, age / CONFIG.CACHE_TTL_MS);
 
@@ -665,7 +718,13 @@ async function fetchApiData(force = false, unitArg = null, silent = false) {
   const currentUnitId = unit === 'Uchiha' ? CONFIG.UNIT_UCHIHA_ID : CONFIG.UNIT_AKATSUKI_ID;
   const now = Date.now();
 
-  if (!force && now < rateLimitedUntil) {
+  // Ni siquiera "force" debe insistir mientras la API está limitada:
+  // eso solo alarga el bloqueo. El botón refleja la espera real.
+  if (now < rateLimitedUntil) {
+    const remaining = rateLimitedUntil - now;
+    refreshCooldown.total = Math.max(CONFIG.MANUAL_COOLDOWN_MS, remaining);
+    refreshCooldown.until = Math.max(refreshCooldown.until, rateLimitedUntil);
+    updateRefreshButton();
     if (isDisplayedUnit && appState.cachedData[unit]) {
       appState.playersData = appState.cachedData[unit];
       rebuildPlayerIndex();
@@ -713,6 +772,10 @@ async function fetchApiData(force = false, unitArg = null, silent = false) {
 
     if (isRateLimit) {
       rateLimitedUntil = Date.now() + CONFIG.RATE_LIMIT_COOLDOWN_MS;
+      // Reflejar el bloqueo en el botón de inmediato (también en auto-refresh).
+      refreshCooldown.total = Math.max(CONFIG.MANUAL_COOLDOWN_MS, CONFIG.RATE_LIMIT_COOLDOWN_MS);
+      refreshCooldown.until = Math.max(refreshCooldown.until, rateLimitedUntil);
+      updateRefreshButton();
       console.warn(`Rate limit en ${unit}. Cooldown ${CONFIG.RATE_LIMIT_COOLDOWN_MS / 1000}s.`);
 
       if (appState.cachedData[unit] && appState.selectedUnit === unit) {
@@ -769,7 +832,12 @@ async function refreshAllUnits(force = true, silent = false, options = {}) {
 
     appState.apiStatus = worst;
   } finally {
-    if (startCooldown) refreshCooldown.until = Date.now() + CONFIG.MANUAL_COOLDOWN_MS;
+    if (startCooldown) {
+      // No acortar un bloqueo por rate limit ya activo.
+      const until = Math.max(Date.now() + CONFIG.MANUAL_COOLDOWN_MS, rateLimitedUntil);
+      refreshCooldown.total = Math.max(CONFIG.MANUAL_COOLDOWN_MS, until - Date.now());
+      refreshCooldown.until = until;
+    }
     refreshInFlight = false;
     WareraContractsHud.refresh();
     renderUsers();
@@ -830,7 +898,11 @@ function syncDamageControls() {
   }
 }
 function renderUsers() {
-  if (WareraPress.isPressing()) return;
+  if (WareraPress.isPressing()) {
+    renderDeferred = true;
+    return;
+  }
+  renderDeferred = false;
   updateApiBanner();
 
   const state = decideMainState();
@@ -904,7 +976,16 @@ function startTimerLoop() {
       updateApiBanner();
     }
 
-    if ((statusChanged || debuffSetChanged) && appState.smartSort && !WareraPress.isPressing()) {
+    // Un render pendiente (p. ej. porque había una pulsación larga) se
+    // recupera en cuanto el usuario suelta.
+    if (renderDeferred && !WareraPress.isPressing()) {
+      renderUsers();
+      return;
+    }
+
+    // Al caducar un buff hay que repintar la fila aunque no estemos en
+    // prioridad táctica; si no, queda "BUFF 00:00:00" para siempre.
+    if ((statusChanged || (debuffSetChanged && appState.smartSort)) && !WareraPress.isPressing()) {
       renderUsers();
     } else {
       WareraRender.actualizarTemporizadores();
@@ -928,7 +1009,9 @@ async function copyCurrentCapture() {
     return;
   }
   copyCaptureBtn.disabled = true;
-  const original = copyCaptureBtn.textContent;
+  copyCaptureBtn.setAttribute('aria-busy', 'true');
+  // El botón solo contiene un SVG: guardar textContent lo borraría.
+  const original = copyCaptureBtn.innerHTML;
   copyCaptureBtn.textContent = '⏳';
   try {
     const blob = await WareraCapture.buildCaptureBlob(players);
@@ -940,8 +1023,9 @@ async function copyCurrentCapture() {
     console.error('Error generando captura:', e);
     WareraCapture.notifyDeliveryResult({ method: 'error' });
   } finally {
+    copyCaptureBtn.innerHTML = original;
+    copyCaptureBtn.removeAttribute('aria-busy');
     copyCaptureBtn.disabled = false;
-    copyCaptureBtn.textContent = original;
   }
 }
 

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="only dark">
   <title>Bahamas WarRoom</title>
+  <link rel="icon" type="image/png" href="favicon.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +15,7 @@
 </head>
 <body>
 
-  <div id="apiSidebar" class="sidebar" role="dialog" aria-label="Configuraciones">
+  <div id="apiSidebar" class="sidebar" role="dialog" aria-label="Configuraciones" inert>
     <div class="sidebar-header">
       <h3>Configuraciones</h3>
       <button id="closeApiBtn" class="close-btn" aria-label="Cerrar configuraciones">✖</button>
@@ -82,12 +83,12 @@
   <div class="app-container">
     <header class="header">
       <div class="brand">
-        <h1 id="appSwitcherTrigger" style="cursor: pointer;">
+        <h1 id="appSwitcherTrigger" style="cursor: pointer;" role="button" tabindex="0"
+            aria-haspopup="dialog" aria-expanded="false" aria-controls="appSwitcherMenu">
           BAHAMAS <span>WARROOM</span> <span class="brand-arrow">▼</span>
         </h1>
       </div>
 
-      <!-- Mensaje temporal aquí -->
       <div class="header-message">
         Kyouya, Madara, vuelvan niños...
       </div>

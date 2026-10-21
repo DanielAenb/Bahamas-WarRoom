@@ -8,11 +8,15 @@
   const TOPICS = {
     'modo-war': {
       title: 'Modo War',
-      src: 'guias/Guia War.png' // <-- Pon aquí tu imagen de Modo War
+      // Versión optimizada (2000 px de ancho). El PNG original se conserva:
+      // guias/Guia War.png
+      src: 'guias/guia-war.jpg'
     },
     'builds': {
       title: 'Builds',
-      src: 'guias/Guia Builds.png'   // <-- Pon aquí tu imagen de Builds
+      // Versión optimizada (2000 px de ancho). El PNG original se conserva:
+      // guias/Guia Builds.png
+      src: 'guias/guia-builds.jpg'
     }
   };
 
@@ -34,11 +38,14 @@
     
     viewerTitle.textContent = topic.title;
     
-    // Mostrar spinner y ocultar imagen vieja
+    // Mostrar spinner y ocultar imagen vieja (reseteando un error anterior)
     guideImage.style.display = 'none';
     loadingSpinner.hidden = false;
+    loadingSpinner.textContent = 'Cargando imagen...';
+    loadingSpinner.style.color = '';
 
     // Cargar nueva imagen
+    guideImage.alt = `Guía: ${topic.title}`;
     guideImage.src = topic.src;
     
     guideImage.onload = () => {
@@ -69,28 +76,43 @@
   const appSwitcherMenu = document.getElementById('appSwitcherMenu');
   const closeSwitcherBtn = document.getElementById('closeSwitcherBtn');
 
-  if (appSwitcherTrigger && appSwitcherOverlay && appSwitcherMenu) {
+  if (appSwitcherTrigger && appSwitcherOverlay && appSwitcherMenu && closeSwitcherBtn) {
     const openSwitcher = () => {
       appSwitcherOverlay.hidden = false;
       appSwitcherMenu.hidden = false;
+      appSwitcherTrigger.setAttribute('aria-expanded', 'true');
       requestAnimationFrame(() => {
         appSwitcherOverlay.classList.add('show');
         appSwitcherMenu.classList.add('show');
       });
+      closeSwitcherBtn.focus();
     };
 
     const closeSwitcher = () => {
+      if (appSwitcherMenu.hidden) return;
+      appSwitcherTrigger.setAttribute('aria-expanded', 'false');
       appSwitcherOverlay.classList.remove('show');
       appSwitcherMenu.classList.remove('show');
       setTimeout(() => {
         appSwitcherOverlay.hidden = true;
         appSwitcherMenu.hidden = true;
       }, 250);
+      appSwitcherTrigger.focus();
     };
 
     appSwitcherTrigger.addEventListener('click', openSwitcher);
+    appSwitcherTrigger.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openSwitcher();
+      }
+    });
     closeSwitcherBtn.addEventListener('click', closeSwitcher);
     appSwitcherOverlay.addEventListener('click', closeSwitcher);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !appSwitcherMenu.hidden) closeSwitcher();
+    });
 
     document.querySelectorAll('.app-switcher-btn').forEach(btn => {
       btn.addEventListener('click', () => {

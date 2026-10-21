@@ -290,7 +290,7 @@
     if (s.smartSort) parts.push('Prioridad Táctica');
     if (s.damagePanelActive) {
       parts.push(`Bonus ${s.battleBonus}%`);
-      parts.push(`Regen ${s.contarRegen ? 'ON' : 'OFF'}`);
+      parts.push('Regen ' + (s.contarRegen ? 'ON · ' + s.regenHours + 'h' : 'OFF'));
     }
     return parts;
   }
@@ -355,7 +355,8 @@
       for (const p of players) {
         const c = deps.calcDamagePotential(p, {
           contarRegen: state.contarRegen,
-          battleBonus: state.battleBonus
+          battleBonus: state.battleBonus,
+          horas: state.regenHours
         });
         totalDamage += c.dmgTotal;
       }
@@ -385,7 +386,8 @@
       if (showDamage) {
         const calc = deps.calcDamagePotential(p, {
           contarRegen: state.contarRegen,
-          battleBonus: state.battleBonus
+          battleBonus: state.battleBonus,
+          horas: state.regenHours
         });
         ctx.font = `bold 22px ${CAPTURE.MONO}`;
         ctx.fillStyle = CAPTURE.C.damageAccent;
@@ -470,7 +472,8 @@
 
       const calc = deps.calcDamagePotential(player, {
         contarRegen: state.contarRegen,
-        battleBonus: state.battleBonus
+        battleBonus: state.battleBonus,
+        horas: state.regenHours
       });
 
       ctx.font = `bold 11px ${CAPTURE.FONT}`;

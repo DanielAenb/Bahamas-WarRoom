@@ -18,6 +18,7 @@
   const STATUSES      = ['active', 'won', 'expiredBattle', 'expiredRound', 'expiredNoBids'];
 
   const AGE_WINDOW_MS = 60 * 60 * 1000;   // 1h → borde izquierdo verde→rojo
+  const REQUEST_TIMEOUT_MS = 15000;
 
   const LS_COUNTRY = 'warera_countries_cache_v1';
   const LS_REGION  = 'warera_regions_cache_v1';
@@ -36,6 +37,13 @@
     if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
     if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
     return Math.floor(n).toString();
+  };
+  const fmtMoney = n => {
+    const v = Number(n);
+    if (!isFinite(v) || v <= 0) return '$0';
+    if (v >= 1e6) return `$${(v / 1e6).toFixed(2)}M`;
+    if (v >= 1e4) return `$${(v / 1e3).toFixed(1)}K`;
+    return `$${v.toFixed(2).replace(/\.00$/, '')}`;
   };
   const shortId = id => (id ? id.slice(-6) : '');
 
@@ -59,8 +67,18 @@
   };
 
   // ===== Fetch helpers =====
+  async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function fetchOne(procedure, param) {
-    const res = await fetch(`${API_BASE}/${procedure}?batch=1`, {
+    const res = await fetchWithTimeout(`${API_BASE}/${procedure}?batch=1`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 0: param }),
@@ -87,7 +105,7 @@
     if (!ids.length) return new Map();
     const body = Object.fromEntries(ids.map((id, i) => [i, { battleId: id }]));
     try {
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `${API_BASE}/${ids.map(() => PROC_BATTLE).join(',')}?batch=1`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
       );
@@ -107,7 +125,7 @@
 
   async function fetchBattleLive(battleId) {
     const input = encodeURIComponent(JSON.stringify({ battleId }));
-    const res = await fetch(`${API_BASE}/${PROC_LIVE}?input=${input}`);
+    const res = await fetchWithTimeout(`${API_BASE}/${PROC_LIVE}?input=${input}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     if (json?.error) throw new Error(json.error.message || 'Error');
@@ -148,11 +166,11 @@
     const procedures = [];
     const params = {};
     let i = 0;
-    for (const id of pendingCountries) { procedures.push('country.getById'); params[i++] = { countryId: id }; }
+    for (const id of pendingCountries) { procedures.push('country.getCountryById'); params[i++] = { countryId: id }; }
     for (const id of pendingRegions)   { procedures.push('region.getById');  params[i++] = { regionId: id }; }
 
     try {
-      const res = await fetch(`${API_BASE}/${procedures.join(',')}?batch=1`, {
+      const res = await fetchWithTimeout(`${API_BASE}/${procedures.join(',')}?batch=1`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params),
@@ -250,7 +268,7 @@
 
     // Stats
     els.minDmg.textContent = fmtDmg(contract.minimumDamage);
-    els.payout.textContent = `$${fmtDmg(contract.currentPayout)}`;
+    els.payout.textContent = fmtMoney(contract.currentPayout);
     els.perK.textContent = `${(contract.currentPerK || 0).toFixed(3)}$`;
 
     // Botón COMPLETADO

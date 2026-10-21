@@ -46,11 +46,12 @@
 
   // ===== HELPERS DE STATUS =====
   function getStatusHtml(player) {
+    const safeId = deps.escapeHtml(player.id);
     if (player.pillStatus === 'BUFF') {
-      return `<span class="status-dot dot-buff"></span> <span class="pill-badge buff">BUFF</span> <span class="timer-text" data-player-id="${player.id}">${deps.formatTimer(player.pillRemainingMs)}</span>`;
+      return `<span class="status-dot dot-buff"></span> <span class="pill-badge buff">BUFF</span> <span class="timer-text" data-player-id="${safeId}">${deps.formatTimer(player.pillRemainingMs)}</span>`;
     }
     if (player.pillStatus === 'DEBUFF') {
-      return `<span class="status-dot dot-debuff"></span> <span class="pill-badge debuff">DEBUFF</span> <span class="timer-text" data-player-id="${player.id}">${deps.formatTimer(player.pillRemainingMs)}</span>`;
+      return `<span class="status-dot dot-debuff"></span> <span class="pill-badge debuff">DEBUFF</span> <span class="timer-text" data-player-id="${safeId}">${deps.formatTimer(player.pillRemainingMs)}</span>`;
     }
     return `<span class="status-dot dot-standby"></span> <span class="pill-badge standby">En Espera</span>`;
   }
@@ -68,25 +69,26 @@
       const healthPct = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
       const hungerPct = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
       const rowClass = p.isCombatReady ? '' : 'out-of-combat';
-      const safeName = encodeURIComponent(p.name);
+      const safeName = deps.escapeHtml(p.name);
+      const safeAvatar = deps.escapeHtml(p.avatarUrl);
+      const safeId = deps.escapeHtml(p.id);
 
       const damageCell = showDamage
-        ? `<td class="damage-cell" data-damage-id="${p.id}">${
+        ? `<td class="damage-cell" data-damage-id="${safeId}">${
             deps.formatDmg(deps.calcDamagePotential(p, {
               contarRegen: state.contarRegen,
               battleBonus: state.battleBonus,
-              horas: state.regenHours // <-- Agrega esta línea
+              horas: state.regenHours
             }).dmgTotal)
           }</td>`
         : '';
 
       return `
-        <tr class="${rowClass}" data-copy-player="${p.id}" style="animation-delay: ${index * 0.05}s">
+        <tr class="${rowClass}" data-copy-player="${safeId}" style="animation-delay: ${index * 0.05}s">
           <td>
             <div class="player-info">
-              <img src="${p.avatarUrl}" class="avatar" alt="" loading="lazy" data-avatar-player="${p.id}"
-                   onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${safeName}&background=334155&color=fff'">
-              <strong>${p.name}</strong>
+              <img src="${safeAvatar}" class="avatar" alt="${safeName}" loading="lazy" data-avatar-player="${safeId}">
+              <strong>${safeName}</strong>
             </div>
           </td>
           <td>${statusHtml}</td>
@@ -131,24 +133,25 @@
       const healthPct = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
       const hungerPct = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
       const estadoClass = p.pillStatus.toLowerCase();
-      const safeName = encodeURIComponent(p.name);
+      const safeName = deps.escapeHtml(p.name);
+      const safeAvatar = deps.escapeHtml(p.avatarUrl);
+      const safeId = deps.escapeHtml(p.id);
 
       const damageSpan = showDamage
-        ? `<span class="damage-badge" data-damage-id="${p.id}">${
+        ? `<span class="damage-badge" data-damage-id="${safeId}">${
             deps.formatDmg(deps.calcDamagePotential(p, {
               contarRegen: state.contarRegen,
               battleBonus: state.battleBonus,
-              horas: state.regenHours // <-- Agrega esta línea
+              horas: state.regenHours
             }).dmgTotal)
           }</span>`
         : '';
 
       return `
-        <div class="tarjeta-usuario ${estadoClass}" data-copy-player="${p.id}" style="animation-delay: ${index * 0.05}s">
+        <div class="tarjeta-usuario ${estadoClass}" data-copy-player="${safeId}" style="animation-delay: ${index * 0.05}s">
           <div class="player-info">
-            <img src="${p.avatarUrl}" class="avatar" alt="" loading="lazy" data-avatar-player="${p.id}"
-                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${safeName}&background=334155&color=fff'">
-            <span class="player-name">${p.name}</span>
+            <img src="${safeAvatar}" class="avatar" alt="${safeName}" loading="lazy" data-avatar-player="${safeId}">
+            <span class="player-name">${safeName}</span>
             ${modoBadge}
           </div>
           <div class="stat-row">
@@ -177,34 +180,35 @@
       const healthPct = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
       const hungerPct = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
       const estadoClass = p.pillStatus.toLowerCase();
-      const safeName = encodeURIComponent(p.name);
-      const shortName = p.name.length > 12 ? p.name.slice(0, 11) + '…' : p.name;
+      const safeName = deps.escapeHtml(p.name);
+      const safeAvatar = deps.escapeHtml(p.avatarUrl);
+      const safeId = deps.escapeHtml(p.id);
+      const shortName = deps.escapeHtml(p.name.length > 12 ? p.name.slice(0, 11) + '…' : p.name);
 
       let statusMini;
       if (p.pillStatus === 'BUFF') {
-        statusMini = `<span class="status-dot dot-buff"></span><span class="timer-text" data-player-id="${p.id}">${deps.formatTimer(p.pillRemainingMs)}</span>`;
+        statusMini = `<span class="status-dot dot-buff"></span><span class="timer-text" data-player-id="${safeId}">${deps.formatTimer(p.pillRemainingMs)}</span>`;
       } else if (p.pillStatus === 'DEBUFF') {
-        statusMini = `<span class="status-dot dot-debuff"></span><span class="timer-text" data-player-id="${p.id}">${deps.formatTimer(p.pillRemainingMs)}</span>`;
+        statusMini = `<span class="status-dot dot-debuff"></span><span class="timer-text" data-player-id="${safeId}">${deps.formatTimer(p.pillRemainingMs)}</span>`;
       } else {
         statusMini = `<span class="status-dot dot-standby"></span><span class="mini-standby">STBY</span>`;
       }
 
       const damageMini = showDamage
-        ? `<span class="damage-mini" data-damage-id="${p.id}">${
+        ? `<span class="damage-mini" data-damage-id="${safeId}">${
             deps.formatDmg(deps.calcDamagePotential(p, {
               contarRegen: state.contarRegen,
               battleBonus: state.battleBonus,
-              horas: state.regenHours // <-- Agrega esta línea
+              horas: state.regenHours
             }).dmgTotal)
           }</span>`
         : '';
 
       return `
-        <div class="mini-card ${estadoClass}" data-copy-player="${p.id}" style="animation-delay: ${index * 0.02}s">
+        <div class="mini-card ${estadoClass}" data-copy-player="${safeId}" style="animation-delay: ${index * 0.02}s">
           <div class="mini-top">
-            <img src="${p.avatarUrl}" class="mini-avatar" alt="" loading="lazy" data-avatar-player="${p.id}"
-                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${safeName}&background=334155&color=fff'">
-            <span class="mini-name" title="${p.name}">${shortName}</span>
+            <img src="${safeAvatar}" class="mini-avatar" alt="${safeName}" loading="lazy" data-avatar-player="${safeId}">
+            <span class="mini-name" title="${safeName}">${shortName}</span>
           </div>
           <div class="mini-bar-row">
             <span class="mini-label">HP</span>
@@ -289,7 +293,7 @@
     if (deps.damagePanelTotal) deps.damagePanelTotal.textContent = deps.formatDmg(total);
     if (deps.damagePanelMeta) {
       deps.damagePanelMeta.textContent =
-        `${players.length} buffeados · Bonus ${state.battleBonus}% · Regen ${state.contarRegen ? 'ON' : 'OFF'}`;
+        `${players.length} buffeados · Bonus ${state.battleBonus}% · Regen ${state.contarRegen ? `ON · ${state.regenHours}h` : 'OFF'}`;
     }
 
     deps.damagePanel.hidden = false;
@@ -316,13 +320,14 @@
     if (deps.debuffPanelBody) {
       deps.debuffPanelBody.innerHTML = debuffed.map(p => {
         const safeName = deps.escapeHtml(p.name);
+        const safeAvatar = deps.escapeHtml(p.avatarUrl);
+        const safeId = deps.escapeHtml(p.id);
         const shortName = p.name.length > 14 ? p.name.slice(0, 13) + '…' : p.name;
         return `
-          <div class="debuff-card" data-copy-player="${p.id}">
-            <img src="${p.avatarUrl}" alt="" loading="lazy" data-avatar-player="${p.id}"
-                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=334155&color=fff'">
+          <div class="debuff-card" data-copy-player="${safeId}">
+            <img src="${safeAvatar}" alt="${safeName}" loading="lazy" data-avatar-player="${safeId}">
             <span class="debuff-card-name" title="${safeName}">${deps.escapeHtml(shortName)}</span>
-            <span class="debuff-card-time" data-player-id="${p.id}">${deps.formatTimer(p.pillRemainingMs)}</span>
+            <span class="debuff-card-time" data-player-id="${safeId}">${deps.formatTimer(p.pillRemainingMs)}</span>
           </div>`;
       }).join('');
     }
