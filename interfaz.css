@@ -1,0 +1,203 @@
+/* ============================================================
+   interfaz.css · Chrome del catálogo de componentes
+   NO redefine estilos de la WarRoom · solo el layout de la página
+   ============================================================ */
+
+.catalog-body {
+  background: #0a0a0b;
+  color: var(--text-primary);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 2rem 1rem 4rem;
+  min-height: 100vh;
+}
+
+.catalog-wrap {
+  max-width: 1300px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* ===== HEADER ===== */
+.catalog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #1f1f22;
+  flex-wrap: wrap;
+}
+.catalog-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #00b1ff;
+  background: rgba(0, 177, 255, 0.08);
+  border: 1px solid rgba(0, 177, 255, 0.35);
+  padding: 3px 10px;
+  border-radius: 100px;
+  margin-bottom: 0.75rem;
+}
+.catalog-header h1 {
+  font-size: 1.75rem;
+  letter-spacing: 2px;
+  font-weight: 800;
+  color: #fff;
+}
+.catalog-header h1 span { color: #00b1ff; }
+.catalog-sub {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-top: 0.4rem;
+}
+.catalog-sub code {
+  background: #1c1c1f;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  color: #7dd3fc;
+}
+.catalog-header-right {
+  display: flex;
+  gap: 2rem;
+}
+.catalog-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+}
+.catalog-meta-label {
+  font-size: 0.62rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+.catalog-meta-value {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #fff;
+}
+
+/* ===== GRID DE SECCIONES ===== */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.cat-section {
+  background: #111114;
+  border: 1px solid #1f1f22;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.cat-span-2 { grid-column: span 2; }
+
+.cat-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid #1f1f22;
+  background: #16161a;
+}
+.cat-number {
+  font-family: monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #00b1ff;
+  background: rgba(0, 177, 255, 0.08);
+  border: 1px solid rgba(0, 177, 255, 0.25);
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+.cat-section-header h2 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.cat-section-body {
+  padding: 1.15rem;
+}
+
+/* ===== Rows / stacks ===== */
+.cat-stack { display: flex; flex-direction: column; gap: 0.9rem; }
+.cat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+/* ===== Paleta ===== */
+.palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.75rem;
+}
+.palette-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.palette-swatch {
+  height: 52px;
+  border-radius: 8px;
+  border: 1px solid #26262a;
+}
+.palette-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.palette-hex {
+  font-family: monospace;
+  font-size: 0.68rem;
+  color: #6b7280;
+}
+
+/* ===== Tipo labels ===== */
+.cat-type-label {
+  font-size: 0.62rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 0.3rem;
+}
+
+/* ===== Footer ===== */
+.catalog-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #1f1f22;
+  color: #6b7280;
+  font-size: 0.78rem;
+  flex-wrap: wrap;
+}
+.catalog-footer code {
+  background: #1c1c1f;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: #7dd3fc;
+  font-size: 0.75rem;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 800px) {
+  .catalog-grid { grid-template-columns: 1fr; }
+  .cat-span-2 { grid-column: auto; }
+  .catalog-header { flex-direction: column; align-items: flex-start; }
+  .catalog-header-right { gap: 1.5rem; }
+}

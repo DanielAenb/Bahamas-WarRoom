@@ -74,7 +74,8 @@
         ? `<td class="damage-cell" data-damage-id="${p.id}">${
             deps.formatDmg(deps.calcDamagePotential(p, {
               contarRegen: state.contarRegen,
-              battleBonus: state.battleBonus
+              battleBonus: state.battleBonus,
+              horas: state.regenHours // <-- Agrega esta línea
             }).dmgTotal)
           }</td>`
         : '';
@@ -136,7 +137,8 @@
         ? `<span class="damage-badge" data-damage-id="${p.id}">${
             deps.formatDmg(deps.calcDamagePotential(p, {
               contarRegen: state.contarRegen,
-              battleBonus: state.battleBonus
+              battleBonus: state.battleBonus,
+              horas: state.regenHours // <-- Agrega esta línea
             }).dmgTotal)
           }</span>`
         : '';
@@ -191,7 +193,8 @@
         ? `<span class="damage-mini" data-damage-id="${p.id}">${
             deps.formatDmg(deps.calcDamagePotential(p, {
               contarRegen: state.contarRegen,
-              battleBonus: state.battleBonus
+              battleBonus: state.battleBonus,
+              horas: state.regenHours // <-- Agrega esta línea
             }).dmgTotal)
           }</span>`
         : '';
@@ -244,7 +247,14 @@
   function actualizarDañosEnVista() {
     const state = deps.getState();
     if (!state.damagePanelActive) return;
-    const opts = { contarRegen: state.contarRegen, battleBonus: state.battleBonus };
+    
+    // AQUÍ AGREGAMOS "horas"
+    const opts = { 
+      contarRegen: state.contarRegen, 
+      battleBonus: state.battleBonus,
+      horas: state.regenHours 
+    };
+
     document.querySelectorAll('[data-damage-id]').forEach(el => {
       const player = state.playersById.get(el.dataset.damageId);
       if (!player) return;
@@ -270,7 +280,8 @@
     for (const p of players) {
       const calc = deps.calcDamagePotential(p, {
         contarRegen: state.contarRegen,
-        battleBonus: state.battleBonus
+        battleBonus: state.battleBonus,
+        horas: state.regenHours   // <-- AGREGAR ESTO
       });
       total += calc.dmgTotal;
     }

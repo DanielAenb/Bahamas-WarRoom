@@ -17,7 +17,7 @@
     const regenHunger     = c.regenHunger     || 0;
 
     const horasBuff = Math.max(0, (player.pillRemainingMs || 0) / 3600000);
-    const horas = horasBuff > 0 ? horasBuff : 8;
+    const horas = opts.horas !== undefined ? opts.horas : (horasBuff > 0 ? horasBuff : 8);
 
     let prc = precision / 100;
     const cc = criticalChance / 100;

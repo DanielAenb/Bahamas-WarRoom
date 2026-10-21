@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="only dark">
+  <title>Bahamas WarRoom · Catálogo de componentes</title>
+
+  <!-- Estilos REALES de la WarRoom -->
+  <link rel="stylesheet" href="styles.css">
+  <!-- Chrome del catálogo (layout, secciones, fondo) -->
+  <link rel="stylesheet" href="interfaz.css">
+</head>
+<body class="catalog-body">
+
+  <div class="catalog-wrap">
+
+    <!-- ============ HEADER ============ -->
+    <header class="catalog-header">
+      <div class="catalog-header-left">
+        <span class="catalog-tag">DESIGN SYSTEM · v1</span>
+        <h1>BAHAMAS <span>WARROOM</span></h1>
+        <p class="catalog-sub">Catálogo de componentes. Cada elemento usa las clases reales de <code>styles.css</code>.</p>
+      </div>
+      <div class="catalog-header-right">
+        <div class="catalog-meta">
+          <span class="catalog-meta-label">Componentes</span>
+          <span class="catalog-meta-value">24</span>
+        </div>
+        <div class="catalog-meta">
+          <span class="catalog-meta-label">Acento</span>
+          <span class="catalog-meta-value" style="color:#00b1ff">#00b1ff</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============ GRID ============ -->
+    <main class="catalog-grid">
+
+      <!-- ============================================================
+           01 · BOTONES
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">01</span>
+          <h2>Botones</h2>
+        </header>
+        <div class="cat-section-body cat-stack">
+          <div class="cat-row">
+            <button class="btn btn-primary">Primary</button>
+            <button class="btn btn-secondary">Secondary</button>
+            <button class="btn btn-primary" disabled>Disabled</button>
+          </div>
+          <div class="cat-row">
+            <button class="icon-btn" title="Capturar">📸</button>
+            <button class="icon-btn" title="Configuraciones">⚙️</button>
+            <button class="icon-btn" disabled>🔒</button>
+          </div>
+          <div class="cat-row">
+            <button class="btn btn-primary refresh-btn" style="min-width:180px">
+              <span>🔄 Actualizar Datos</span>
+              <span class="refresh-btn-progress" style="width:45%"></span>
+            </button>
+            <button class="btn refresh-btn cooldown" style="min-width:180px">
+              <span>⏳ Espera 12s</span>
+              <span class="refresh-btn-progress" style="width:60%"></span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           02 · INPUTS
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">02</span>
+          <h2>Inputs</h2>
+        </header>
+        <div class="cat-section-body cat-stack">
+          <div class="config-group">
+            <label>Clave API personal</label>
+            <input type="password" placeholder="Pega aquí tu key">
+          </div>
+          <div class="cat-row">
+            <span class="bonus-label">Bonus:</span>
+            <input type="number" class="bonus-input" value="30" min="0" max="200">
+            <span class="bonus-suffix">%</span>
+          </div>
+          <label class="checkbox-line">
+            <input type="checkbox" checked>
+            <span>Forzar descarga de capturas</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           03 · SWITCHES
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">03</span>
+          <h2>Switches</h2>
+        </header>
+        <div class="cat-section-body cat-stack">
+          <div class="cat-row">
+            <span class="toggle-label">🚨 Táctica</span>
+            <label class="switch"><input type="checkbox"><span class="slider round"></span></label>
+            <label class="switch"><input type="checkbox" checked><span class="slider round"></span></label>
+          </div>
+          <div class="cat-row">
+            <span class="damage-label">💥 Daño</span>
+            <label class="switch"><input type="checkbox"><span class="slider round damage-slider"></span></label>
+            <label class="switch"><input type="checkbox" checked><span class="slider round damage-slider"></span></label>
+          </div>
+          <div class="cat-row">
+            <span class="damage-label-secondary">♻️ Regen</span>
+            <label class="switch"><input type="checkbox"><span class="slider round damage-slider-secondary"></span></label>
+            <label class="switch"><input type="checkbox" checked><span class="slider round damage-slider-secondary"></span></label>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           04 · SEGMENTED / CHIPS
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">04</span>
+          <h2>Segmented controls</h2>
+        </header>
+        <div class="cat-section-body cat-stack">
+          <div class="segmented-control">
+            <button class="segmented-btn active">Tabla</button>
+            <button class="segmented-btn">Tarjetas</button>
+            <button class="segmented-btn">Compacta</button>
+          </div>
+          <div class="segmented-control">
+            <button class="segmented-btn">Modo WAR</button>
+            <button class="segmented-btn active">Modo ECO</button>
+            <button class="segmented-btn">Ver Todo</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           05 · BADGES / PILLS
+           ============================================================ -->
+      <section class="cat-section cat-span-2">
+        <header class="cat-section-header">
+          <span class="cat-number">05</span>
+          <h2>Badges & pills</h2>
+        </header>
+        <div class="cat-section-body">
+          <div class="cat-row">
+            <span class="badge-mode badge-war">WAR</span>
+            <span class="badge-mode badge-eco">ECO</span>
+            <span class="pill-badge buff">BUFF</span>
+            <span class="pill-badge debuff">DEBUFF</span>
+            <span class="pill-badge standby">En Espera</span>
+          </div>
+          <div class="cat-row">
+            <span class="modo-badge war">WAR</span>
+            <span class="modo-badge eco">ECO</span>
+            <span class="damage-badge">2.41M</span>
+            <span class="damage-mini">1.87M</span>
+            <span class="damage-cell" style="display:inline-block;padding:0">0.42M</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           06 · STATUS DOTS
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">06</span>
+          <h2>Status dots</h2>
+        </header>
+        <div class="cat-section-body cat-stack">
+          <div class="cat-row">
+            <span class="status-dot dot-buff"></span> <span>BUFF</span>
+            <span class="status-dot dot-debuff"></span> <span>DEBUFF</span>
+            <span class="status-dot dot-standby"></span> <span>STANDBY</span>
+          </div>
+          <div class="cat-row">
+            <span class="freshness-dot" style="background:#22c55e;box-shadow:0 0 8px #22c55e" title="Fresco"></span>
+            <span class="freshness-dot" style="background:#f59e0b;box-shadow:0 0 8px #f59e0b" title="Límite"></span>
+            <span class="freshness-dot" style="background:#ef4444;box-shadow:0 0 8px #ef4444" title="Viejo"></span>
+            <span class="freshness-dot" title="Sin datos"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           07 · BARRAS DE PROGRESO
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">07</span>
+          <h2>Progress bars</h2>
+        </header>
+        <div class="cat-section-body cat-stack">
+          <div>
+            <div class="stat-text">Vida · 920 / 1000 HP</div>
+            <div class="progress-bg"><div class="progress-fill health-fill" style="width:92%"></div></div>
+          </div>
+          <div>
+            <div class="stat-text">Hambre · 6 / 10</div>
+            <div class="progress-bg"><div class="progress-fill hunger-fill" style="width:60%"></div></div>
+          </div>
+          <div class="mini-bar-row" style="max-width:220px">
+            <span class="mini-label">HP</span>
+            <div class="mini-bar"><div class="mini-fill health-fill" style="width:78%"></div></div>
+            <span class="mini-value">780</span>
+          </div>
+          <div class="mini-bar-row" style="max-width:220px">
+            <span class="mini-label">FD</span>
+            <div class="mini-bar"><div class="mini-fill hunger-fill" style="width:45%"></div></div>
+            <span class="mini-value">4</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           08 · TIMERS
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">08</span>
+          <h2>Timers</h2>
+        </header>
+        <div class="cat-section-body cat-stack">
+          <div class="cat-row">
+            <span class="timer-text">02:13:44</span>
+            <span class="timer-text">00:47:11</span>
+            <span class="timer-text">00:00:00</span>
+          </div>
+          <div class="cat-row">
+            <span class="debuff-card-time">00:42:13</span>
+            <span class="debuff-card-time">00:51:08</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           09 · CARD USUARIO
+           ============================================================ -->
+      <section class="cat-section cat-span-2">
+        <header class="cat-section-header">
+          <span class="cat-number">09</span>
+          <h2>Tarjeta usuario</h2>
+        </header>
+        <div class="cat-section-body">
+          <div class="vista-tarjetas" style="padding:0">
+            <div class="tarjeta-usuario buff">
+              <div class="player-info">
+                <div class="avatar" style="display:grid;place-items:center;color:#fff;background:#4f6bff">A</div>
+                <span class="player-name">Akatsuki_Rider</span>
+                <span class="modo-badge war">WAR</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-text">Vida: 920 / 1000 HP</span>
+                <div class="progress-bg"><div class="progress-fill health-fill" style="width:92%"></div></div>
+              </div>
+              <div class="stat-row">
+                <span class="stat-text">Hambre: 6 / 10</span>
+                <div class="progress-bg"><div class="progress-fill hunger-fill" style="width:60%"></div></div>
+              </div>
+              <div class="status-row">
+                <span class="status-dot dot-buff"></span>
+                <span class="pill-badge buff">BUFF</span>
+                <span class="timer-text">02:13:44</span>
+                <span class="damage-badge">2.41M</span>
+              </div>
+            </div>
+
+            <div class="tarjeta-usuario debuff">
+              <div class="player-info">
+                <div class="avatar" style="display:grid;place-items:center;color:#fff;background:#ef4444">K</div>
+                <span class="player-name">KNEIT0R3MIL</span>
+                <span class="modo-badge war">WAR</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-text">Vida: 350 / 1000 HP</span>
+                <div class="progress-bg"><div class="progress-fill health-fill" style="width:35%"></div></div>
+              </div>
+              <div class="stat-row">
+                <span class="stat-text">Hambre: 2 / 10</span>
+                <div class="progress-bg"><div class="progress-fill hunger-fill" style="width:20%"></div></div>
+              </div>
+              <div class="status-row">
+                <span class="status-dot dot-debuff"></span>
+                <span class="pill-badge debuff">DEBUFF</span>
+                <span class="timer-text">00:47:11</span>
+                <span class="damage-badge">0.42M</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           10 · MINI CARDS
+           ============================================================ -->
+      <section class="cat-section cat-span-2">
+        <header class="cat-section-header">
+          <span class="cat-number">10</span>
+          <h2>Vista compacta</h2>
+        </header>
+        <div class="cat-section-body">
+          <div class="vista-compacta" style="padding:0">
+            <div class="mini-card buff">
+              <div class="mini-top">
+                <div class="mini-avatar" style="display:grid;place-items:center;color:#fff;background:#4f6bff;font-size:0.6rem;font-weight:700">A</div>
+                <span class="mini-name">Akatsuki…</span>
+              </div>
+              <div class="mini-bar-row"><span class="mini-label">HP</span><div class="mini-bar"><div class="mini-fill health-fill" style="width:92%"></div></div><span class="mini-value">920</span></div>
+              <div class="mini-bar-row"><span class="mini-label">FD</span><div class="mini-bar"><div class="mini-fill hunger-fill" style="width:60%"></div></div><span class="mini-value">6</span></div>
+              <div class="mini-status">
+                <span class="status-dot dot-buff"></span>
+                <span class="timer-text">02:13:44</span>
+                <span class="damage-mini">2.41M</span>
+              </div>
+            </div>
+
+            <div class="mini-card debuff">
+              <div class="mini-top">
+                <div class="mini-avatar" style="display:grid;place-items:center;color:#fff;background:#ef4444;font-size:0.6rem;font-weight:700">K</div>
+                <span class="mini-name">KNEIT…</span>
+              </div>
+              <div class="mini-bar-row"><span class="mini-label">HP</span><div class="mini-bar"><div class="mini-fill health-fill" style="width:35%"></div></div><span class="mini-value">350</span></div>
+              <div class="mini-bar-row"><span class="mini-label">FD</span><div class="mini-bar"><div class="mini-fill hunger-fill" style="width:20%"></div></div><span class="mini-value">2</span></div>
+              <div class="mini-status">
+                <span class="status-dot dot-debuff"></span>
+                <span class="timer-text">00:47:11</span>
+                <span class="damage-mini">0.42M</span>
+              </div>
+            </div>
+
+            <div class="mini-card standby">
+              <div class="mini-top">
+                <div class="mini-avatar" style="display:grid;place-items:center;color:#fff;background:#22c55e;font-size:0.6rem;font-weight:700">L</div>
+                <span class="mini-name">LOREEK</span>
+              </div>
+              <div class="mini-bar-row"><span class="mini-label">HP</span><div class="mini-bar"><div class="mini-fill health-fill" style="width:100%"></div></div><span class="mini-value">1000</span></div>
+              <div class="mini-bar-row"><span class="mini-label">FD</span><div class="mini-bar"><div class="mini-fill hunger-fill" style="width:80%"></div></div><span class="mini-value">8</span></div>
+              <div class="mini-status">
+                <span class="status-dot dot-standby"></span>
+                <span class="mini-standby">STBY</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           11 · FILA DE TABLA
+           ============================================================ -->
+      <section class="cat-section cat-span-2">
+        <header class="cat-section-header">
+          <span class="cat-number">11</span>
+          <h2>Fila de tabla</h2>
+        </header>
+        <div class="cat-section-body" style="padding:0">
+          <table class="vista-tabla">
+            <thead>
+              <tr>
+                <th>Jugador</th>
+                <th>Estado</th>
+                <th style="width:15%;">Vida</th>
+                <th style="width:15%;">Hambre</th>
+                <th>Modo</th>
+                <th class="damage-th">Daño</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="player-info">
+                    <div class="avatar" style="display:grid;place-items:center;color:#fff;background:#4f6bff">A</div>
+                    <strong>Akatsuki_Rider</strong>
+                  </div>
+                </td>
+                <td>
+                  <span class="status-dot dot-buff"></span>
+                  <span class="pill-badge buff">BUFF</span>
+                  <span class="timer-text">02:13:44</span>
+                </td>
+                <td>
+                  <div class="stat-text">920 / 1000 HP</div>
+                  <div class="progress-bg"><div class="progress-fill health-fill" style="width:92%"></div></div>
+                </td>
+                <td>
+                  <div class="stat-text">6 / 10</div>
+                  <div class="progress-bg"><div class="progress-fill hunger-fill" style="width:60%"></div></div>
+                </td>
+                <td><span class="badge-mode badge-war">WAR</span></td>
+                <td class="damage-cell">2.41M</td>
+              </tr>
+              <tr class="out-of-combat">
+                <td>
+                  <div class="player-info">
+                    <div class="avatar" style="display:grid;place-items:center;color:#fff;background:#ef4444">K</div>
+                    <strong>KNEIT0R3MIL</strong>
+                  </div>
+                </td>
+                <td>
+                  <span class="status-dot dot-debuff"></span>
+                  <span class="pill-badge debuff">DEBUFF</span>
+                  <span class="timer-text">00:47:11</span>
+                </td>
+                <td>
+                  <div class="stat-text">350 / 1000 HP</div>
+                  <div class="progress-bg"><div class="progress-fill health-fill" style="width:35%"></div></div>
+                </td>
+                <td>
+                  <div class="stat-text">2 / 10</div>
+                  <div class="progress-bg"><div class="progress-fill hunger-fill" style="width:20%"></div></div>
+                </td>
+                <td><span class="badge-mode badge-war">WAR</span></td>
+                <td class="damage-cell">0.42M</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           12 · PANEL DAÑO
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">12</span>
+          <h2>Panel daño</h2>
+        </header>
+        <div class="cat-section-body" style="padding:0">
+          <section class="damage-panel">
+            <div class="damage-panel-header">
+              <span class="damage-panel-title">
+                💥 DAÑO POTENCIAL: <span class="damage-panel-total-value">12.45M</span>
+              </span>
+              <span class="damage-panel-meta">8 buffeados · Bonus 30%</span>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           13 · PANEL DEBUFF
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">13</span>
+          <h2>Panel debuff</h2>
+        </header>
+        <div class="cat-section-body" style="padding:0">
+          <section class="debuff-panel">
+            <div class="debuff-panel-header">
+              <span class="debuff-panel-title">⚠️ PRÓXIMOS A SALIR</span>
+              <span class="debuff-panel-meta">3 · ≤1h</span>
+            </div>
+            <div class="debuff-panel-body">
+              <div class="debuff-card">
+                <div style="width:20px;height:20px;border-radius:50%;background:#4f6bff;display:grid;place-items:center;font-size:0.62rem;font-weight:700">S</div>
+                <span class="debuff-card-name">Shamu</span>
+                <span class="debuff-card-time">00:42:13</span>
+              </div>
+              <div class="debuff-card">
+                <div style="width:20px;height:20px;border-radius:50%;background:#8b5cf6;display:grid;place-items:center;font-size:0.62rem;font-weight:700">K</div>
+                <span class="debuff-card-name">KNEIT0R3MIL</span>
+                <span class="debuff-card-time">00:51:08</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           14 · TOASTS
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">14</span>
+          <h2>Toasts</h2>
+        </header>
+        <div class="cat-section-body cat-stack">
+          <div class="toast success show" style="position:relative;bottom:auto;left:auto;transform:none;opacity:1">
+            <span>Información cargada</span>
+            <div class="toast-bar" style="width:60%"></div>
+          </div>
+          <div class="toast error show" style="position:relative;bottom:auto;left:auto;transform:none;opacity:1">
+            <span>⚠️ Límite de API</span>
+            <div class="toast-bar" style="width:80%"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           15 · BANNERS API
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">15</span>
+          <h2>Banners</h2>
+        </header>
+        <div class="cat-section-body cat-stack">
+          <div class="api-banner limited"><span>⚠️ API AL LÍMITE · INFO DE CACHÉ</span></div>
+          <div class="api-banner error"><span>⚠️ API NO DISPONIBLE · INFO DE CACHÉ (5m 12s)</span></div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           16 · TOOLTIP
+           ============================================================ -->
+      <section class="cat-section">
+        <header class="cat-section-header">
+          <span class="cat-number">16</span>
+          <h2>Tooltip</h2>
+        </header>
+        <div class="cat-section-body">
+          <div class="cat-row">
+            <span class="toggle-label">🚨 Prioridad</span>
+            <div class="tooltip" tabindex="0">?
+              <span class="tooltiptext">Muestra SOLO usuarios con BUFF. Ordenados por urgencia.</span>
+            </div>
+          </div>
+          <p style="color:var(--text-secondary);font-size:0.75rem;margin-top:0.75rem">Hover sobre el "?" para ver el tooltip real.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           17 · COLORES
+           ============================================================ -->
+      <section class="cat-section cat-span-2">
+        <header class="cat-section-header">
+          <span class="cat-number">17</span>
+          <h2>Paleta de color</h2>
+        </header>
+        <div class="cat-section-body">
+          <div class="palette">
+            <div class="palette-item"><div class="palette-swatch" style="background:#00b1ff"></div><div class="palette-name">accent</div><div class="palette-hex">#00b1ff</div></div>
+            <div class="palette-item"><div class="palette-swatch" style="background:#22c55e"></div><div class="palette-name">buff</div><div class="palette-hex">#22c55e</div></div>
+            <div class="palette-item"><div class="palette-swatch" style="background:#ef4444"></div><div class="palette-name">debuff</div><div class="palette-hex">#ef4444</div></div>
+            <div class="palette-item"><div class="palette-swatch" style="background:#818fa3"></div><div class="palette-name">standby</div><div class="palette-hex">#818fa3</div></div>
+            <div class="palette-item"><div class="palette-swatch" style="background:#fbbf24"></div><div class="palette-name">amber</div><div class="palette-hex">#fbbf24</div></div>
+            <div class="palette-item"><div class="palette-swatch" style="background:#7dd3fc"></div><div class="palette-name">blue</div><div class="palette-hex">#7dd3fc</div></div>
+            <div class="palette-item"><div class="palette-swatch" style="background:#1D1C21;border:1px solid #535c69"></div><div class="palette-name">bg-primary</div><div class="palette-hex">#1D1C21</div></div>
+            <div class="palette-item"><div class="palette-swatch" style="background:#252429"></div><div class="palette-name">bg-secondary</div><div class="palette-hex">#252429</div></div>
+            <div class="palette-item"><div class="palette-swatch" style="background:#36353A"></div><div class="palette-name">bg-card</div><div class="palette-hex">#36353A</div></div>
+            <div class="palette-item"><div class="palette-swatch" style="background:#535c69"></div><div class="palette-name">border</div><div class="palette-hex">#535c69</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           18 · TIPOGRAFÍA
+           ============================================================ -->
+      <section class="cat-section cat-span-2">
+        <header class="cat-section-header">
+          <span class="cat-number">18</span>
+          <h2>Tipografía</h2>
+        </header>
+        <div class="cat-section-body cat-stack">
+          <div>
+            <div class="cat-type-label">H1 · Brand</div>
+            <h1 style="font-size:1.25rem;letter-spacing:1px;color:#fff">BAHAMAS <span style="color:var(--accent-color)">WARROOM</span></h1>
+          </div>
+          <div>
+            <div class="cat-type-label">H2 · Section</div>
+            <h2 style="font-size:1.05rem;color:#fff">Título de sección</h2>
+          </div>
+          <div>
+            <div class="cat-type-label">Body</div>
+            <p style="font-size:0.9rem;color:var(--text-primary)">Texto principal de la aplicación. Usa Segoe UI / Tahoma.</p>
+          </div>
+          <div>
+            <div class="cat-type-label">Mono · Timers y daño</div>
+            <span style="font-family:monospace;font-weight:bold">02:13:44 · 12.45M · 0.110$</span>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="catalog-footer">
+      <span>Bahamas WarRoom · Catálogo de componentes</span>
+      <span>Todos los estilos vienen de <code>styles.css</code></span>
+    </footer>
+
+  </div>
+
+</body>
+</html>

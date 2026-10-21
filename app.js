@@ -29,6 +29,13 @@ function loadContarRegenState() {
   catch { return false; }
 }
 
+function loadRegenHoursState() {
+  try {
+    const val = parseInt(localStorage.getItem('warera_regen_hours'));
+    return (!isNaN(val) && val >= 1 && val <= 8) ? val : 8;
+  } catch { return 8; }
+}
+
 function loadBattleBonusState() {
   try {
     const raw = localStorage.getItem('warera_battle_bonus');
@@ -62,6 +69,8 @@ const appState = {
   forceDownload: localStorage.getItem('warera_force_download') === '1',
   damagePanelActive: false,
   contarRegen: loadContarRegenState(),
+  regenHours: loadRegenHoursState(),  // <-- Asegúrate de que esté aquí
+  activeContractId: null,             // <-- Asegúrate de que esté aquí
   battleBonus: loadBattleBonusState(),
   contractsHudEnabled: localStorage.getItem('warera_contracts_hud_enabled') !== '0'
 };
@@ -305,6 +314,8 @@ function bindUiEvents() {
     contarRegenToggle.addEventListener('change', (e) => {
       appState.contarRegen = e.target.checked;
       try { localStorage.setItem('warera_contar_regen', appState.contarRegen ? '1' : '0'); } catch {}
+
+      syncDamageControls(); // <-- NUEVA LÍNEA (muestra/oculta el slider)
       WareraRender.renderDamagePanel();
       WareraRender.actualizarDañosEnVista();
     });
@@ -400,6 +411,54 @@ function bindUiEvents() {
       });
     });
   }
+
+ // Eventos del Slider
+  const regenHoursSlider = document.getElementById('regenHoursSlider');
+  const regenHoursValue = document.getElementById('regenHoursValue');
+  
+  const updateSliderUI = () => {
+    if (!regenHoursSlider || !regenHoursValue) return;
+    regenHoursSlider.value = appState.regenHours;
+    regenHoursValue.textContent = `${appState.regenHours}h`;
+  };
+  
+  if (regenHoursSlider) {
+    updateSliderUI();
+    regenHoursSlider.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value);
+      appState.regenHours = v;
+      regenHoursValue.textContent = `${v}h`;
+      try { localStorage.setItem('warera_regen_hours', v); } catch {}
+      WareraRender.renderDamagePanel();
+      WareraRender.actualizarDañosEnVista();
+    });
+  }
+
+  // Escuchar cuando el HUD detecta/oculta un contrato
+  window.addEventListener('hud-contract-updated', (e) => {
+    const detail = e.detail;
+    
+    // Si hay un contrato nuevo
+    if (detail && detail.id) {
+      if (appState.activeContractId !== detail.id) {
+        appState.activeContractId = detail.id;
+        appState.regenHours = detail.hours;
+        updateSliderUI();
+        WareraRender.renderDamagePanel();
+        WareraRender.actualizarDañosEnVista();
+      }
+    } 
+    // Si se cerró el contrato (o no hay)
+    else {
+      if (appState.activeContractId !== null) {
+        appState.activeContractId = null;
+        appState.regenHours = 8;
+        updateSliderUI();
+        WareraRender.renderDamagePanel();
+        WareraRender.actualizarDañosEnVista();
+      }
+    }
+  });
 
 }
 
@@ -735,6 +794,7 @@ function getFilteredAndSortedPlayers() {
 }
 
 // ===== SIMULADOR =====
+
 function syncDamageControls() {
   if (!damageToggleGroup) return;
   const smartOn = !!appState.smartSort;
@@ -742,7 +802,7 @@ function syncDamageControls() {
 
   damageToggleGroup.hidden = !smartOn;
 
-  // NUEVO: Ocultar filtros de Modo y Orden cuando SmartSort está activo
+  // Ocultar filtros de Modo y Orden
   const modeFilterGroup = document.getElementById('modeFilterGroup');
   const orderFilterGroup = document.getElementById('orderFilterGroup');
   if (modeFilterGroup) modeFilterGroup.hidden = smartOn;
@@ -756,12 +816,19 @@ function syncDamageControls() {
 
   if (damagePanel) damagePanel.hidden = !regenEnabled;
 
+  // MOSTRAR/OCULTAR EL SLIDER ESTRICTAMENTE:
+  const regenSliderRow = document.getElementById('regenSliderRow');
+  if (regenSliderRow) {
+    // Solo se muestra si está smartOn, damagePanelActive y contarRegen encendido
+    const showSlider = smartOn && appState.damagePanelActive && appState.contarRegen;
+    regenSliderRow.hidden = !showSlider;
+  }
+
   if (!smartOn) {
     appState.damagePanelActive = false;
     if (damageToggle) damageToggle.checked = false;
   }
 }
-
 function renderUsers() {
   if (WareraPress.isPressing()) return;
   updateApiBanner();

@@ -222,6 +222,8 @@
     if (deps?.els?.hud) deps.els.hud.hidden = true;
     currentContract = null;
     currentEst = null;
+    // Avisar que se ocultó el HUD para resetear el slider a 8h
+    window.dispatchEvent(new CustomEvent('hud-contract-updated', { detail: null }));
   }
 
   function renderHud(contract, est) {
@@ -257,6 +259,19 @@
     els.completeBtn.textContent = 'COMPLETADO';
 
     els.hud.hidden = false;
+
+    // Enviar señal para auto-ajustar el slider de regen
+    if (est && est.estimatedEndMs) {
+      const remMs = Math.max(0, est.estimatedEndMs - Date.now());
+      
+      // Redondear hacia abajo. 
+      // Ej: 4h 59m -> 4.  Si queda menos de 1 hora (0.5h), Math.max lo fuerza a 1.
+      let remHours = Math.floor(remMs / 3600000);
+      remHours = Math.max(1, Math.min(8, remHours)); 
+      
+      window.dispatchEvent(new CustomEvent('hud-contract-updated', { detail: { id: contract._id, hours: remHours } }));
+    }
+    
     tickHud();
   }
 
