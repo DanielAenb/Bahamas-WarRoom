@@ -161,6 +161,7 @@
 
     const attackLevel = user.skills?.attack?.level ?? 0;
     const modo = attackLevel > WAR_ATTACK_LEVEL_THRESHOLD ? 'WAR' : 'ECO';
+    const playerLevel = Number.isFinite(user.leveling?.level) ? user.leveling.level : null;
 
     let pillStatus = 'STANDBY';
     let pillEndTime = null;
@@ -200,6 +201,7 @@
     return {
       id: user._id,
       name: user.username,
+      level: playerLevel,
       avatarUrl,
       avatarUrlProxy,
       health: Math.floor(healthVal),

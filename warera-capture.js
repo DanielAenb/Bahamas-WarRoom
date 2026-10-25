@@ -22,6 +22,7 @@
       label: '#8b95a3',
       value: '#e2e8f0',
       footer: '#64748b',
+      levelText: '#94a3b8',
       buff: '#22c55e',
       debuff: '#ef4444',
       standby: '#818fa3',
@@ -185,6 +186,16 @@
     ctx.textBaseline = 'middle';
     ctx.fillText(modo, x + padX, y + 0.5);
     return w;
+  }
+
+  // Nivel compacto, pensado para ir pegado al nombre sin robarte ancho.
+  function drawLevelInline(ctx, level, x, y) {
+    if (!Number.isFinite(level) || level <= 0) return;
+    ctx.font = `bold 10px ${CAPTURE.FONT}`;
+    ctx.fillStyle = CAPTURE.C.levelText;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Nv. ${Math.floor(level)}`, x, y + 1);
   }
 
   function drawStatusInline(ctx, player, x, y, size = 'md') {
@@ -375,9 +386,15 @@
       ctx.fillStyle = CAPTURE.C.name;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(deps.truncateText(ctx, p.name, 180), PAD + 90, cy);
+      const nameText = deps.truncateText(ctx, p.name, 180);
+      ctx.fillText(nameText, PAD + 90, cy);
+      if (Number.isFinite(p.level) && p.level > 0) {
+        const nameW = ctx.measureText(nameText).width;
+        drawLevelInline(ctx, p.level, PAD + 90 + nameW + 6, cy);
+      }
 
-      drawModoBadge(ctx, p.modo, 320, cy, 'md');
+      // Un poco más a la derecha para dejar sitio al nivel sin tocar el nombre.
+      drawModoBadge(ctx, p.modo, 360, cy, 'md');
       drawStatusStacked(ctx, p, 430, cy);
 
       drawStatBar(ctx, 660, cy - 17, 'HP', p.health, p.healthMax, CAPTURE.C.hpFill, 140, 'md');
@@ -455,10 +472,21 @@
     drawAvatar(ctx, avatarImg, player, PAD + 36, 105, 36);
 
     const nameX = PAD + 90;
+    const hasLevel = Number.isFinite(player.level) && player.level > 0;
+    let levelSpace = 0;
+    if (hasLevel) {
+      ctx.font = `bold 10px ${CAPTURE.FONT}`;
+      levelSpace = ctx.measureText(`Nv. ${Math.floor(player.level)}`).width + 10;
+    }
     ctx.font = `bold 20px ${CAPTURE.FONT}`;
     ctx.fillStyle = CAPTURE.C.name;
     ctx.textBaseline = 'middle';
-    ctx.fillText(deps.truncateText(ctx, player.name, W - nameX - PAD), nameX, 90);
+    const nameText = deps.truncateText(ctx, player.name, W - nameX - PAD - levelSpace);
+    ctx.fillText(nameText, nameX, 90);
+    if (hasLevel) {
+      const nameW = ctx.measureText(nameText).width;
+      drawLevelInline(ctx, player.level, nameX + nameW + 10, 90);
+    }
 
     const badgeW = drawModoBadge(ctx, player.modo, nameX, 124, 'md');
     drawStatusInline(ctx, player, nameX + badgeW + 18, 124, 'md');

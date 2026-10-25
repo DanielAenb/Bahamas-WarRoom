@@ -56,6 +56,15 @@
     return `<span class="status-dot dot-standby"></span> <span class="pill-badge standby">En Espera</span>`;
   }
 
+  // Badge compacto de nivel. Si el jugador viene de una caché antigua sin
+  // `level`, no se muestra nada (mejor que un "Nv. 0" falso).
+  function getLevelBadge(player, compact = false) {
+    const level = Number(player.level);
+    if (!Number.isFinite(level) || level <= 0) return '';
+    const n = Math.floor(level);
+    return `<span class="player-level${compact ? ' player-level-sm' : ''}" title="Nivel ${n}">Nv.${compact ? '' : ' '}${n}</span>`;
+  }
+
   // ===== VISTAS PRINCIPALES =====
   function renderTabla(players) {
     const state = deps.getState();
@@ -89,6 +98,7 @@
             <div class="player-info">
               <img src="${safeAvatar}" class="avatar" alt="${safeName}" loading="lazy" data-avatar-player="${safeId}">
               <strong>${safeName}</strong>
+              ${getLevelBadge(p)}
             </div>
           </td>
           <td>${statusHtml}</td>
@@ -151,7 +161,10 @@
         <div class="tarjeta-usuario ${estadoClass}" data-copy-player="${safeId}" style="animation-delay: ${index * 0.05}s">
           <div class="player-info">
             <img src="${safeAvatar}" class="avatar" alt="${safeName}" loading="lazy" data-avatar-player="${safeId}">
-            <span class="player-name">${safeName}</span>
+            <div class="player-name-wrap">
+              <span class="player-name">${safeName}</span>
+              ${getLevelBadge(p)}
+            </div>
             ${modoBadge}
           </div>
           <div class="stat-row">
@@ -209,6 +222,7 @@
           <div class="mini-top">
             <img src="${safeAvatar}" class="mini-avatar" alt="${safeName}" loading="lazy" data-avatar-player="${safeId}">
             <span class="mini-name" title="${safeName}">${shortName}</span>
+            ${getLevelBadge(p, true)}
           </div>
           <div class="mini-bar-row">
             <span class="mini-label">HP</span>
@@ -327,6 +341,7 @@
           <div class="debuff-card" data-copy-player="${safeId}">
             <img src="${safeAvatar}" alt="${safeName}" loading="lazy" data-avatar-player="${safeId}">
             <span class="debuff-card-name" title="${safeName}">${deps.escapeHtml(shortName)}</span>
+            ${getLevelBadge(p, true)}
             <span class="debuff-card-time" data-player-id="${safeId}">${deps.formatTimer(p.pillRemainingMs)}</span>
           </div>`;
       }).join('');
