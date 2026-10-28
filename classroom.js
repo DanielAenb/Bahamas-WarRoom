@@ -19,6 +19,7 @@
       // Versión optimizada (2000 px de ancho). El PNG original se conserva:
       // guias/Guia Builds.png
       src: 'guias/guia-builds.jpg'
+      
     },
     'workforce': {
       title: 'WorkForce v0.27',
