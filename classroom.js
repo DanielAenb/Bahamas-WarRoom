@@ -11,14 +11,14 @@
       type: 'image',
       // Versión optimizada (2000 px de ancho). El PNG original se conserva:
       // guias/Guia War.png
-      src: '/guias/guia-war.jpg'
+      src: 'https://imgur.com/a/e92kqhP'
     },
     'builds': {
       title: 'Builds',
       type: 'image',
       // Versión optimizada (2000 px de ancho). El PNG original se conserva:
       // guias/Guia Builds.png
-      src: '/guias/guia-builds.jpg'
+      src: 'https://imgur.com/a/8aUMcow'
       
     },
     'workforce': {
