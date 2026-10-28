@@ -9,17 +9,18 @@
     'modo-war': {
       title: 'Modo War',
       type: 'image',
-      // Versión optimizada (2000 px de ancho). El PNG original se conserva:
-      // guias/Guia War.png
-      src: 'https://raw.githubusercontent.com/Bahamas/WarRoom/main/guias/guia-war.jpg'
+      // Enlace RAW de GitHub (reemplaza con tus datos)
+      src: 'https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/guias/guia-war.jpg',
+      // Fallback: enlace directo de Imgur (reemplaza con tu URL i.imgur.com)
+      fallback: 'https://i.imgur.com/TU_ID_DIRECTO_WAR.jpg'
     },
     'builds': {
       title: 'Builds',
       type: 'image',
-      // Versión optimizada (2000 px de ancho). El PNG original se conserva:
-      // guias/Guia Builds.png
-      src: 'https://raw.githubusercontent.com/Bahamas/WarRoom/main/guias/guia-builds.jpg'
-      
+      // Enlace RAW de GitHub
+      src: 'https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/guias/guia-builds.jpg',
+      // Fallback: enlace directo de Imgur
+      fallback: 'https://i.imgur.com/TU_ID_DIRECTO_BUILD.jpg'
     },
     'workforce': {
       title: 'WorkForce v0.27',
