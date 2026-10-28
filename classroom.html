@@ -14,7 +14,9 @@
   <!-- Reutilizamos los estilos base de la WarRoom para el fondo, header, etc. -->
   <link rel="stylesheet" href="styles.css">
   <!-- Sobrescribimos con los estilos específicos del ClassRoom -->
-  <link rel="stylesheet" href="classroom.css">
+  <link rel="stylesheet" href="classroom.css?v=20261027d">
+  <!-- Guía de texto WorkForce v0.27 -->
+  <link rel="stylesheet" href="workforce.css?v=20261027d">
 </head>
 <body>
 
@@ -42,6 +44,10 @@
           <button class="topic-btn" data-topic="builds">
             <span class="topic-icon">🛠️</span> Builds
           </button>
+          <button class="topic-btn" data-topic="workforce">
+            <span class="topic-icon">👥</span> WorkForce
+            <span class="topic-badge">NUEVO</span>
+          </button>
         </nav>
       </aside>
 
@@ -56,6 +62,9 @@
           <div class="loading-spinner" id="loadingSpinner" hidden>Cargando imagen...</div>
           <img id="guideImage" src="" alt="Guía" decoding="async" style="display: none;">
         </div>
+
+        <!-- Guía de texto: se rellena desde workforce.js -->
+        <div class="workforce-content" id="workforceContent" hidden></div>
       </main>
     </section>
   </div>
@@ -75,6 +84,7 @@
     </div>
   </div>
 
-  <script src="classroom.js"></script>
+  <script src="workforce.js?v=20261027d"></script>
+  <script src="classroom.js?v=20261027d"></script>
 </body>
 </html>

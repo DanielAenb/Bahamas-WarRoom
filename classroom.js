@@ -8,15 +8,21 @@
   const TOPICS = {
     'modo-war': {
       title: 'Modo War',
+      type: 'image',
       // Versión optimizada (2000 px de ancho). El PNG original se conserva:
       // guias/Guia War.png
-      src: 'guias/Guia War.png'
+      src: 'guias/guia-war.jpg'
     },
     'builds': {
       title: 'Builds',
+      type: 'image',
       // Versión optimizada (2000 px de ancho). El PNG original se conserva:
       // guias/Guia Builds.png
-      src: 'guias/Guia Builds.png'
+      src: 'guias/guia-builds.jpg'
+    },
+    'workforce': {
+      title: 'WorkForce v0.27',
+      type: 'html'
     }
   };
 
@@ -25,8 +31,10 @@
   // ==========================================
   const topicBtns = document.querySelectorAll('.topic-btn');
   const viewerTitle = document.getElementById('viewerTitle');
+  const imageContainer = document.getElementById('imageContainer');
   const guideImage = document.getElementById('guideImage');
   const loadingSpinner = document.getElementById('loadingSpinner');
+  const workforceContent = document.getElementById('workforceContent');
 
   function loadTopic(topicId) {
     const topic = TOPICS[topicId];
@@ -34,10 +42,23 @@
 
     // Actualizar UI
     topicBtns.forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`.topic-btn[data-topic="${topicId}"]`).classList.add('active');
-    
+    const activeBtn = document.querySelector(`.topic-btn[data-topic="${topicId}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
     viewerTitle.textContent = topic.title;
-    
+
+    // La guía de Workforce es HTML; las otras dos son imágenes.
+    const isHtml = topic.type === 'html';
+    if (imageContainer) imageContainer.hidden = isHtml;
+    if (workforceContent) workforceContent.hidden = !isHtml;
+
+    if (isHtml) {
+      if (workforceContent && window.WareraWorkforce) {
+        window.WareraWorkforce.render(workforceContent);
+      }
+      return;
+    }
+
     // Mostrar spinner y ocultar imagen vieja (reseteando un error anterior)
     guideImage.style.display = 'none';
     loadingSpinner.hidden = false;
@@ -47,7 +68,7 @@
     // Cargar nueva imagen
     guideImage.alt = `Guía: ${topic.title}`;
     guideImage.src = topic.src;
-    
+
     guideImage.onload = () => {
       loadingSpinner.hidden = true;
       guideImage.style.display = 'block';

@@ -78,12 +78,30 @@
   font-size: 1.1rem;
 }
 
+.topic-badge {
+  margin-left: auto;
+  padding: 0.12rem 0.4rem;
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--accent-color);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
 /* Visor de imágenes */
 .classroom-viewer {
+  min-width: 0;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   overflow: hidden;
+  /* clip no crea un contenedor de scroll: permite que la barra de
+     pestañas de WorkForce se quede fija al hacer scroll. */
+  overflow: clip;
   min-height: 60vh;
   display: flex;
   flex-direction: column;
@@ -151,6 +169,10 @@
     min-width: 120px;
     padding: 0.5rem;
     font-size: 0.85rem;
+  }
+
+  .topic-badge {
+    margin-left: 0.25rem;
   }
   
   .image-container {

@@ -381,4 +381,36 @@
     });
   });
 
+  // ============ WorkForce · estructura ============
+  describe('WorkForce · estructura', () => {
+    const host = document.createElement('div');
+    window.WareraWorkforce.render(host);
+
+    it('tiene 7 pestañas', () => {
+      expect(host.querySelectorAll('[role="tab"]')).toHaveLength(7);
+    });
+    it('tiene 7 paneles', () => {
+      expect(host.querySelectorAll('[role="tabpanel"]')).toHaveLength(7);
+    });
+    it('abre Básicos por defecto', () => {
+      expect(host.querySelector('#wf-tab-basicos').getAttribute('aria-selected')).toBe('true');
+      expect(host.querySelector('#wf-panel-basicos').hidden).toBeFalsy();
+      expect(host.querySelector('#wf-panel-guia').hidden).toBeTruthy();
+    });
+    it('incluye los 52 rasgos', () => {
+      expect(host.querySelectorAll('.wf-trait-row')).toHaveLength(52);
+    });
+    it('incluye los 78 eventos', () => {
+      expect(host.querySelectorAll('.wf-event-list li')).toHaveLength(78);
+    });
+    it('no tiene enlaces externos', () => {
+      expect(host.querySelectorAll('a[href^="http"]')).toHaveLength(0);
+    });
+    it('cambia de pestaña al hacer clic', () => {
+      host.querySelector('#wf-tab-salarios').click();
+      expect(host.querySelector('#wf-panel-salarios').hidden).toBeFalsy();
+      expect(host.querySelector('#wf-panel-basicos').hidden).toBeTruthy();
+    });
+  });
+
 })();
