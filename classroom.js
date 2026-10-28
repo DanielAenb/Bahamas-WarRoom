@@ -3,24 +3,23 @@
 
   // ==========================================
   // 1. CONFIGURACIÓN DE GUÍAS
-  // Cambia los "src" por las rutas reales de tus imágenes.
   // ==========================================
   const TOPICS = {
     'modo-war': {
       title: 'Modo War',
       type: 'image',
-      // Enlace RAW de GitHub (reemplaza con tus datos)
-      src: 'https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/guias/guia-war.jpg',
-      // Fallback: enlace directo de Imgur (reemplaza con tu URL i.imgur.com)
-      fallback: 'https://i.imgur.com/TU_ID_DIRECTO_WAR.jpg'
+      // Enlace RAW de GitHub (reemplaza la rama y el hash si es necesario)
+      src: 'https://raw.githubusercontent.com/DanielAenb/Bahamas-WarRoom/ab5514767704368cc2739ab0ede3995d2fa3ef4b/guias/Guia%20War.png',
+      // Fallback: enlace de Imgur (álbum, puede no funcionar como imagen directa)
+      fallback: 'https://imgur.com/a/e92kqhP'
     },
     'builds': {
       title: 'Builds',
       type: 'image',
       // Enlace RAW de GitHub
-      src: 'https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/guias/guia-builds.jpg',
-      // Fallback: enlace directo de Imgur
-      fallback: 'https://i.imgur.com/TU_ID_DIRECTO_BUILD.jpg'
+      src: 'https://raw.githubusercontent.com/DanielAenb/Bahamas-WarRoom/ab5514767704368cc2739ab0ede3995d2fa3ef4b/guias/Guia%20Builds.png',
+      // Fallback: enlace de Imgur
+      fallback: 'https://imgur.com/a/8aUMcow'
     },
     'workforce': {
       title: 'WorkForce v0.27',
@@ -38,6 +37,8 @@
   const loadingSpinner = document.getElementById('loadingSpinner');
   const workforceContent = document.getElementById('workforceContent');
 
+  let loadSequence = 0;
+
   function loadTopic(topicId) {
     const topic = TOPICS[topicId];
     if (!topic) return;
@@ -49,7 +50,6 @@
 
     viewerTitle.textContent = topic.title;
 
-    // La guía de Workforce es HTML; las otras dos son imágenes.
     const isHtml = topic.type === 'html';
     if (imageContainer) imageContainer.hidden = isHtml;
     if (workforceContent) workforceContent.hidden = !isHtml;
@@ -61,26 +61,39 @@
       return;
     }
 
-    // Mostrar spinner y ocultar imagen vieja (reseteando un error anterior)
+    // Mostrar spinner y ocultar imagen vieja
     guideImage.style.display = 'none';
     loadingSpinner.hidden = false;
     loadingSpinner.textContent = 'Cargando imagen...';
     loadingSpinner.style.color = '';
 
-    // Cargar nueva imagen
+    const loadToken = ++loadSequence;
+    let usingFallback = false;
+
     guideImage.alt = `Guía: ${topic.title}`;
-    guideImage.src = topic.src;
 
     guideImage.onload = () => {
+      if (loadToken !== loadSequence) return;
       loadingSpinner.hidden = true;
       guideImage.style.display = 'block';
     };
 
     guideImage.onerror = () => {
+      if (loadToken !== loadSequence) return;
+
+      if (!usingFallback && topic.fallback) {
+        usingFallback = true;
+        loadingSpinner.textContent = 'Cargando versión online...';
+        guideImage.src = topic.fallback;
+        return;
+      }
+
       loadingSpinner.textContent = 'Error al cargar la imagen. Verifica la ruta.';
       loadingSpinner.style.color = '#ef4444';
       guideImage.style.display = 'none';
     };
+
+    guideImage.src = topic.src;
   }
 
   // Eventos de los botones
@@ -144,7 +157,6 @@
         if (target === 'warroom') {
           window.location.href = 'index.html';
         } else if (target === 'classroom') {
-          // Ya estamos en classroom, solo cerramos el menú
           closeSwitcher();
         }
       });
