@@ -40,7 +40,15 @@
   // Firma: (playersData, selectedMode, smartSort, ordenActual) → nuevo array ordenado.
   function getFilteredAndSortedPlayers(playersData, selectedMode, smartSort, ordenActual) {
     let list = [...playersData];
-    if (selectedMode !== 'ALL') list = list.filter(p => p.modo === selectedMode);
+    
+    // Filtro robusto: ignoramos mayúsculas y espacios
+    if (selectedMode !== 'ALL') {
+      const modeTarget = String(selectedMode).trim().toUpperCase();
+      list = list.filter(p => {
+        const playerMode = String(p.modo || '').trim().toUpperCase();
+        return playerMode === modeTarget;
+      });
+    }
 
     if (smartSort) {
       return list.filter(p => p.pillStatus === 'BUFF').sort((a, b) => {
@@ -77,7 +85,6 @@
     });
     return list;
   }
-
   window.WareraUtils = {
     escapeHtml,
     formatDmg,

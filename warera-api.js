@@ -17,7 +17,7 @@
   const REQUEST_TIMEOUT_MS = 15000;
 
   // Techo práctico medido: 50 OK, 100 falla con 413. Margen seguro: 40.
-  const BATCH_LIMIT = 40;
+  const BATCH_LIMIT = 25;
 
   // Proxy de imágenes con CORS garantizado (para canvas / capturas).
   const IMAGE_PROXY = 'https://wsrv.nl/';
@@ -118,7 +118,7 @@
     const batches = chunk(memberIds, BATCH_LIMIT);
 
     for (const ids of batches) {
-      const procedures = ids.map(() => 'user.getUserLite');
+      const procedures = ids.map(() => 'user.getUserById');
       const body = Object.fromEntries(ids.map((id, i) => [i, { userId: id }]));
 
       let results;
