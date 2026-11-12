@@ -15,9 +15,18 @@
     const dodge           = c.dodge           || 0;
     const regenHP         = c.regenHP         || 0;
     const regenHunger     = c.regenHunger     || 0;
-
-    const horasBuff = Math.max(0, (player.pillRemainingMs || 0) / 3600000);
-    const horas = opts.horas !== undefined ? opts.horas : (horasBuff > 0 ? horasBuff : 8);
+  const horasBuff = Math.max(0, (player.pillRemainingMs || 0) / 3600000);
+  
+  let horas;
+  if (horasBuff > 0) {
+    // Si el jugador tiene buff, el tiempo máximo de regen es su tiempo de buff restante.
+    // Si el slider pide menos horas que las que le quedan, usamos el slider.
+    // Si el slider pide más horas de las que le quedan, lo topamos con el tiempo del buff.
+    horas = opts.horas !== undefined ? Math.min(opts.horas, horasBuff) : horasBuff;
+  } else {
+    // Si no tiene buff activo, usamos el slider (o 8 por defecto)
+    horas = opts.horas !== undefined ? opts.horas : 8;
+  }
 
     let prc = precision / 100;
     const cc = criticalChance / 100;
