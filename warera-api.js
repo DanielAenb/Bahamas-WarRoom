@@ -195,7 +195,8 @@
       armor:          user.skills?.armor?.total            ?? 0,
       dodge:          user.skills?.dodge?.total            ?? 0,
       regenHP:        user.skills?.health?.hourlyBarRegen  ?? 0,
-      regenHunger:    user.skills?.hunger?.hourlyBarRegen  ?? 0
+      regenHunger:    user.skills?.hunger?.hourlyBarRegen  ?? 0,
+      militaryRankPercent: user.skills?.attack?.militaryRankPercent ?? 0 // <-- NUEVO
     };
 
     return {
