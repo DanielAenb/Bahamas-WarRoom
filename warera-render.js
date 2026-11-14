@@ -46,14 +46,35 @@
 
   // ===== HELPERS DE STATUS =====
   function getStatusHtml(player) {
-    const safeId = deps.escapeHtml(player.id);
-    if (player.pillStatus === 'BUFF') {
-      return `<span class="status-dot dot-buff"></span> <span class="pill-badge buff">BUFF</span> <span class="timer-text" data-player-id="${safeId}">${deps.formatTimer(player.pillRemainingMs)}</span>`;
+    const isTired = !!deps.getState().tiredPlayers[player.id];
+    
+    // Si está en DEBUFF o STANDBY, no permitimos menú, se muestra normal
+    if (player.pillStatus !== 'BUFF') {
+      // (Aquí dejas tu código actual para DEBUFF y STANDBY)
+      if (player.pillStatus === 'DEBUFF') {
+        return `<span class="status-dot dot-debuff"></span> <span class="pill-badge debuff">DEBUFF</span> <span class="timer-text" data-player-id="${player.id}">${deps.formatTimer(player.pillRemainingMs)}</span>`;
+      }
+      return `<span class="status-dot dot-standby"></span> <span class="pill-badge standby">En Espera</span>`;
     }
-    if (player.pillStatus === 'DEBUFF') {
-      return `<span class="status-dot dot-debuff"></span> <span class="pill-badge debuff">DEBUFF</span> <span class="timer-text" data-player-id="${safeId}">${deps.formatTimer(player.pillRemainingMs)}</span>`;
-    }
-    return `<span class="status-dot dot-standby"></span> <span class="pill-badge standby">En Espera</span>`;
+
+    // Si es BUFF, mostramos el menú desplegable
+    const badgeClass = isTired ? 'tired' : 'buff';
+    const label = isTired ? 'Tired' : 'BUFF';
+    const dotClass = isTired ? 'dot-tired' : 'dot-buff';
+
+    return `
+      <div class="status-dropdown" data-dropdown-id="${player.id}">
+        <span class="status-trigger" data-toggle-menu="${player.id}">
+          <span class="status-dot ${dotClass}"></span> 
+          <span class="pill-badge ${badgeClass}">${label}</span> 
+          <span class="timer-text" data-player-id="${player.id}">${deps.formatTimer(player.pillRemainingMs)}</span>
+        </span>
+        <div class="status-menu" id="menu-${player.id}">
+          <button data-set-status="buff" data-player="${player.id}" class="opt-buff">🟢 BUFF</button>
+          <button data-set-status="tired" data-player="${player.id}" class="opt-tired">🟠 Tired</button>
+        </div>
+      </div>
+    `;
   }
 
   // Badge compacto de nivel. Si el jugador viene de una caché antigua sin
@@ -77,7 +98,7 @@
         : `<span class="badge-mode badge-eco">ECO</span>`;
       const healthPct = p.healthMax > 0 ? Math.min(100, (p.health / p.healthMax) * 100) : 0;
       const hungerPct = p.hungerMax > 0 ? Math.min(100, (p.hunger / p.hungerMax) * 100) : 0;
-      const rowClass = p.isCombatReady ? '' : 'out-of-combat';
+      const rowClass = (p.isCombatReady ? '' : 'out-of-combat') + (deps.getState().tiredPlayers[p.id] ? ' tr-tired' : '');
       const safeName = deps.escapeHtml(p.name);
       const safeAvatar = deps.escapeHtml(p.avatarUrl);
       const safeId = deps.escapeHtml(p.id);
@@ -158,7 +179,7 @@
         : '';
 
       return `
-        <div class="tarjeta-usuario ${estadoClass}" data-copy-player="${safeId}" style="animation-delay: ${index * 0.05}s">
+        <div class="mini-card ${estadoClass} ${deps.getState().tiredPlayers[p.id] ? 'tired' : ''}" data-copy-player="${safeId}" style="animation-delay: ${index * 0.05}s">
           <div class="player-info">
             <img src="${safeAvatar}" class="avatar" alt="${safeName}" loading="lazy" data-avatar-player="${safeId}">
             <div class="player-name-wrap">
