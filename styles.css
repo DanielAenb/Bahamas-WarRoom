@@ -441,6 +441,10 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
 .vista-tabla .dot-buff { background-color: var(--status-buff); box-shadow: 0 0 8px var(--status-buff); }
 .vista-tabla .dot-debuff { background-color: var(--status-debuff); box-shadow: 0 0 8px var(--status-debuff); }
 .vista-tabla .dot-standby { background-color: var(--status-standby); box-shadow: 0 0 8px var(--status-standby); }
+.vista-tabla .dot-tired { background-color: #f97316; box-shadow: 0 0 8px #f97316; }
+.tarjeta-usuario .dot-tired { background-color: #f97316; box-shadow: 0 0 8px #f97316; }
+.mini-status .status-dot.dot-tired { background-color: #f97316; box-shadow: 0 0 6px #f97316; }
+
 .vista-tabla .pill-badge {
   display: inline-flex;
   align-items: center;
@@ -790,14 +794,12 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
 
 /* ===== ANIMACIONES ===== */
 @keyframes fadeInSlide {
-  0% { opacity: 0; transform: translateY(15px); }
-  100% { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(15px); }
 }
 .vista-tabla tbody tr,
 .tarjeta-usuario,
 .mini-card {
-  opacity: 0;
-  animation: fadeInSlide 0.5s ease-out forwards;
+  animation: fadeInSlide 0.5s ease-out backwards;
 }
 
 /* ===== FLASH AL CAPTURAR JUGADOR ===== */
@@ -1760,46 +1762,77 @@ input:checked + .slider.damage-slider-secondary {
 .status-trigger {
   cursor: pointer;
   user-select: none;
+  -webkit-user-select: none;
   transition: transform 0.15s;
 }
 .status-trigger:hover { transform: scale(1.05); }
 
 .status-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 4px;
+  position: fixed;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  z-index: 100;
-  min-width: 100px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  min-width: 140px;
   overflow: hidden;
   display: none;
+  flex-direction: column;
 }
 
-.status-menu.open { display: flex; flex-direction: column; }
+.status-menu.open {
+  display: flex;
+  animation: statusMenuIn 0.14s ease-out;
+}
+
+@keyframes statusMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 .status-menu button {
   background: none;
   border: none;
   color: var(--text-primary);
-  padding: 0.4rem 0.8rem;
+  padding: 0.5rem 0.9rem;
   text-align: left;
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  transition: background 0.15s;
 }
-.status-menu button:hover { background: rgba(255, 255, 255, 0.05); }
 
-/* Colores para el menú */
-.status-menu .opt-buff { color: #4ade80; }
+.status-menu button:hover,
+.status-menu button:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.status-menu button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.status-menu button.is-active {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 600;
+}
+
+/* Colores de las opciones */
+.status-menu .opt-buff  { color: #4ade80; }
 .status-menu .opt-tired { color: #f97316; }
+.status-menu .opt-reset { color: var(--text-muted); }
 
-/* Estado visual "Tired" */
+/* ===== ESTADO TIRED ===== */
+/* Badge con estilo naranja */
 .pill-badge.tired {
   background-color: rgba(249, 115, 22, 0.15);
   color: #f97316;
@@ -1807,10 +1840,19 @@ input:checked + .slider.damage-slider-secondary {
   box-shadow: 0 0 8px rgba(249, 115, 22, 0.35);
 }
 
-/* Reducir opacidad de la fila/tarjeta completa */
-.tr-tired, .tarjeta-usuario.tired, .mini-card.tired {
-  opacity: 0.45;
-}
-.tr-tired:hover, .tarjeta-usuario.tired:hover, .mini-card.tired:hover {
-  opacity: 0.8;
+/* Dot naranja en las tres vistas */
+.vista-tabla .dot-tired { background-color: #f97316; box-shadow: 0 0 8px #f97316; }
+.tarjeta-usuario .dot-tired { background-color: #f97316; box-shadow: 0 0 8px #f97316; }
+.mini-status .status-dot.dot-tired { background-color: #f97316; box-shadow: 0 0 6px #f97316; }
+
+/* Borde lateral naranja (reemplaza el azul del accent) */
+.tarjeta-usuario.tired { border-left-color: #f97316; }
+.mini-card.tired       { border-left-color: #f97316; }
+
+/* La tabla no tiene borde lateral — sin reglas para .tr-tired */
+
+@media (prefers-reduced-motion: reduce) {
+  .status-menu.open {
+    animation: none;
+  }
 }

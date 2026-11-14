@@ -1,273 +1,1203 @@
 /**
  * Bahamas WarRoom — Script principal.
  */
+
 const CONFIG = {
   UNIT_UCHIHA_ID: "6997581b896745b3e1b21d0f",
   UNIT_AKATSUKI_ID: "69f542668d7015d064d4147a",
-  CACHE_TTL_MS: 2 * 60 * 1000, CACHE_MAX_AGE_MS: 10 * 60 * 1000, AUTO_REFRESH_MIN_GAP_MS: 90 * 1000,
-  CACHE_STORAGE_KEY: 'warera_cache_v2', CACHE_VERSION: 9, MANUAL_COOLDOWN_MS: 15 * 1000, RATE_LIMIT_COOLDOWN_MS: 30 * 1000,
-  FRESHNESS_REFRESH_EVERY_N_TICKS: 5, HOLD_MS: 1000, BATTLE_BONUS_DEFAULT: 30, BATTLE_BONUS_TTL_MS: 2 * 60 * 60 * 1000, DEBUFF_WINDOW_MS: 60 * 60 * 1000
+  CACHE_TTL_MS: 2 * 60 * 1000,
+  CACHE_MAX_AGE_MS: 10 * 60 * 1000,
+  AUTO_REFRESH_MIN_GAP_MS: 90 * 1000,
+  CACHE_STORAGE_KEY: 'warera_cache_v2',
+  CACHE_VERSION: 10,
+  MANUAL_COOLDOWN_MS: 15 * 1000,
+  RATE_LIMIT_COOLDOWN_MS: 30 * 1000,
+  FRESHNESS_REFRESH_EVERY_N_TICKS: 5,
+  HOLD_MS: 1000,
+  BATTLE_BONUS_DEFAULT: 30,
+  BATTLE_BONUS_TTL_MS: 2 * 60 * 60 * 1000,
+  DEBUFF_WINDOW_MS: 60 * 60 * 1000
 };
+
 const UNITS = ['Uchiha', 'Akatsuki'];
+
 const { escapeHtml, formatDmg, formatTimer } = WareraUtils;
 const { calcDamagePotential } = WareraDamage;
 
-function loadContarRegenState() { try { return localStorage.getItem('warera_contar_regen') === '1'; } catch { return false; } }
+function loadContarRegenState() {
+  try { return localStorage.getItem('warera_contar_regen') === '1'; }
+  catch { return false; }
+}
+
 function loadRegenHoursState() {
-  try { const val = parseInt(localStorage.getItem('warera_regen_hours')); return (!isNaN(val) && val >= 1 && val <= 8) ? val : 8; } catch { return 8; }
+  try {
+    const val = parseInt(localStorage.getItem('warera_regen_hours'));
+    return (!isNaN(val) && val >= 1 && val <= 8) ? val : 8;
+  } catch { return 8; }
 }
+
 function loadBattleBonusState() {
-  try { const raw = localStorage.getItem('warera_battle_bonus'); if (!raw) return CONFIG.BATTLE_BONUS_DEFAULT; const { value, setAt } = JSON.parse(raw); if (Date.now() - setAt > CONFIG.BATTLE_BONUS_TTL_MS) return CONFIG.BATTLE_BONUS_DEFAULT; const v = Number(value); if (!isFinite(v)) return CONFIG.BATTLE_BONUS_DEFAULT; return Math.max(0, Math.min(200, v)); } catch { return CONFIG.BATTLE_BONUS_DEFAULT; }
+  try {
+    const raw = localStorage.getItem('warera_battle_bonus');
+    if (!raw) return CONFIG.BATTLE_BONUS_DEFAULT;
+    const { value, setAt } = JSON.parse(raw);
+    if (Date.now() - setAt > CONFIG.BATTLE_BONUS_TTL_MS) return CONFIG.BATTLE_BONUS_DEFAULT;
+    const v = Number(value);
+    if (!isFinite(v)) return CONFIG.BATTLE_BONUS_DEFAULT;
+    return Math.max(0, Math.min(200, v));
+  } catch { return CONFIG.BATTLE_BONUS_DEFAULT; }
 }
-function saveBattleBonusState(value) { try { localStorage.setItem('warera_battle_bonus', JSON.stringify({ value, setAt: Date.now() })); } catch {} }
+
+function saveBattleBonusState(value) {
+  try {
+    localStorage.setItem('warera_battle_bonus', JSON.stringify({ value, setAt: Date.now() }));
+  } catch {}
+}
+
+const MANUAL_STATE_KEY = 'warera_manual_states';
+
+function loadManualStates() {
+  try {
+    const raw = localStorage.getItem(MANUAL_STATE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch { return {}; }
+}
+
+function saveManualStates(states) {
+  try { localStorage.setItem(MANUAL_STATE_KEY, JSON.stringify(states)); }
+  catch {}
+}
 
 const appState = {
-  selectedUnit: 'Uchiha', selectedMode: 'WAR', smartSort: false, ordenActual: 'alfabetico', playersData: [], playersById: new Map(),
-  cachedData: { Uchiha: null, Akatsuki: null }, lastFetchTime: { Uchiha: 0, Akatsuki: 0 }, vistaActual: 'tabla', eleccionManual: false,
-  apiStatus: 'ok', forceDownload: localStorage.getItem('warera_force_download') === '1', damagePanelActive: false,
-  contarRegen: loadContarRegenState(), regenHours: loadRegenHoursState(), activeContractId: null, battleBonus: loadBattleBonusState(),
+  selectedUnit: 'Uchiha',
+  selectedMode: 'WAR',
+  smartSort: false,
+  ordenActual: 'estado',
+  playersData: [],
+  playersById: new Map(),
+  cachedData: { Uchiha: null, Akatsuki: null },
+  lastFetchTime: { Uchiha: 0, Akatsuki: 0 },
+  vistaActual: 'tabla',
+  eleccionManual: false,
+  apiStatus: 'ok',
+  forceDownload: localStorage.getItem('warera_force_download') === '1',
+  damagePanelActive: false,
+  contarRegen: loadContarRegenState(),
+  regenHours: loadRegenHoursState(),
+  activeContractId: null,
+  battleBonus: loadBattleBonusState(),
   contractsHudEnabled: localStorage.getItem('warera_contracts_hud_enabled') !== '0',
-  tiredPlayers: (() => { try { return JSON.parse(localStorage.getItem('warera_tired_players')) || {}; } catch { return {}; } })()
+  manualStates: loadManualStates()
 };
 
-const $ = id => document.getElementById(id);
-const sidebar = $('apiSidebar'), overlay = $('overlay'), openApiBtn = $('openApiBtn'), closeApiBtn = $('closeApiBtn'), copyCaptureBtn = $('copyCaptureBtn');
-const apiKeyInput = $('apiKeyInput'), saveKeyBtn = $('saveKeyBtn'), clearKeyBtn = $('clearKeyBtn'), forceDownloadToggle = $('forceDownloadToggle');
-const refreshBtn = $('refreshDataBtn'), refreshDataLabel = $('refreshDataLabel'), refreshDataProgress = $('refreshDataProgress');
-const smartSortToggle = $('smartSortToggle'), usersContainer = $('usersContainer'), apiBanner = $('apiBanner'), apiBannerText = $('apiBannerText'), freshnessDot = $('freshnessDot');
-const damageToggleGroup = $('damageToggleGroup'), damageRegenGroup = $('damageRegenGroup'), damageToggle = $('damageToggle'), contarRegenToggle = $('contarRegenToggle');
-const battleBonusInput = $('battleBonusInput'), damagePanel = $('damagePanel'), damagePanelMeta = $('damagePanelMeta'), damagePanelTotal = $('damagePanelTotal');
-const debuffPanel = $('debuffPanel'), debuffPanelMeta = $('debuffPanelMeta'), debuffPanelBody = $('debuffPanelBody');
-const regenHoursSlider = $('regenHoursSlider'), regenHoursValue = $('regenHoursValue');
+const sidebar             = document.getElementById('apiSidebar');
+const overlay             = document.getElementById('overlay');
+const openApiBtn          = document.getElementById('openApiBtn');
+const closeApiBtn         = document.getElementById('closeApiBtn');
+const copyCaptureBtn      = document.getElementById('copyCaptureBtn');
+const apiKeyInput         = document.getElementById('apiKeyInput');
+const saveKeyBtn          = document.getElementById('saveKeyBtn');
+const clearKeyBtn         = document.getElementById('clearKeyBtn');
+const forceDownloadToggle = document.getElementById('forceDownloadToggle');
+const refreshBtn          = document.getElementById('refreshDataBtn');
+const refreshDataLabel    = document.getElementById('refreshDataLabel');
+const refreshDataProgress = document.getElementById('refreshDataProgress');
+const smartSortToggle     = document.getElementById('smartSortToggle');
+const usersContainer      = document.getElementById('usersContainer');
+const apiBanner           = document.getElementById('apiBanner');
+const apiBannerText       = document.getElementById('apiBannerText');
+const toast               = document.getElementById('toast');
+const toastMessage        = document.getElementById('toastMessage');
+const toastBar            = document.getElementById('toastBar');
+const freshnessDot        = document.getElementById('freshnessDot');
 
-let refreshIntervalId = null, timerLoopId = null, freshnessTickCount = 0, pendingFetches = 0, rateLimitedUntil = 0, refreshInFlight = false;
+const damageToggleGroup   = document.getElementById('damageToggleGroup');
+const damageRegenGroup    = document.getElementById('damageRegenGroup');
+const damageToggle        = document.getElementById('damageToggle');
+const contarRegenToggle   = document.getElementById('contarRegenToggle');
+const battleBonusInput    = document.getElementById('battleBonusInput');
+const damagePanel         = document.getElementById('damagePanel');
+const damagePanelMeta     = document.getElementById('damagePanelMeta');
+const damagePanelTotal    = document.getElementById('damagePanelTotal');
+
+const debuffPanel         = document.getElementById('debuffPanel');
+const debuffPanelMeta     = document.getElementById('debuffPanelMeta');
+const debuffPanelBody     = document.getElementById('debuffPanelBody');
+
+let refreshIntervalId  = null;
+let timerLoopId        = null;
+let freshnessTickCount = 0;
+let pendingFetches     = 0;
+
+let rateLimitedUntil = 0;
+let refreshInFlight  = false;
+let renderDeferred   = false;
+
 const refreshCooldown = { until: 0, total: CONFIG.MANUAL_COOLDOWN_MS };
 
+// ===== MINI MENÚ BUFF/TIRED =====
+let activeStatusMenu = null;
+let activeStatusMenuPlayerId = null;
+
+function closeStatusMenu() {
+  if (activeStatusMenu) {
+    activeStatusMenu.remove();
+    activeStatusMenu = null;
+  }
+  if (activeStatusMenuPlayerId) {
+    document.querySelectorAll(`[data-status-trigger="${activeStatusMenuPlayerId}"]`).forEach(el => {
+      el.setAttribute('aria-expanded', 'false');
+    });
+    activeStatusMenuPlayerId = null;
+  }
+}
+
+function resolveTriggerFromEvent(e) {
+  // Render nuevo: solo BUFF lleva data-status-trigger
+  const t = e.target.closest('[data-status-trigger]');
+  if (t) return { el: t, playerId: t.dataset.statusTrigger };
+
+  // Fallback render viejo: SOLO .pill-badge.buff
+  const badge = e.target.closest('.pill-badge.buff');
+  if (!badge) return null;
+  const owner = e.target.closest('[data-copy-player]');
+  if (!owner) return null;
+  const playerId = owner.dataset.copyPlayer;
+  if (!playerId) return null;
+  badge.dataset.statusTrigger = playerId;
+  return { el: badge, playerId };
+}
+
+function openStatusMenu(triggerEl, playerId) {
+  closeStatusMenu();
+
+  const player = appState.playersById.get(playerId)
+              || appState.playersData.find(p => p.id === playerId);
+  if (!player) {
+    mostrarNotificacion('No se encontró el jugador.', 1500, 'error');
+    return;
+  }
+
+  // Salvaguarda: solo BUFF puede abrir el menú
+  if (player.pillStatus !== 'BUFF') {
+    mostrarNotificacion('Solo jugadores con BUFF activo se pueden editar.', 1800, 'error');
+    return;
+  }
+
+  const currentManual = appState.manualStates[playerId] || null;
+  const effective = currentManual || player.pillStatus;
+
+  const menu = document.createElement('div');
+  menu.className = 'status-menu open';
+  menu.setAttribute('role', 'menu');
+  menu.dataset.playerId = playerId;
+
+  Object.assign(menu.style, {
+    position: 'fixed',
+    display: 'flex',
+    flexDirection: 'column',
+    minWidth: '150px',
+    background: '#1c1c1f',
+    border: '1px solid #1d1d22',
+    borderRadius: '6px',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+    zIndex: '9999',
+    overflow: 'hidden',
+    padding: '4px 0'
+  });
+
+  const opts = [
+    { value: 'TIRED', icon: '😴', label: 'Tired',  cls: 'opt-tired', color: '#f97316' },
+    { value: '',      icon: '↺',  label: 'Normal', cls: 'opt-reset', color: '#94a3b8', isReset: true }
+  ];
+
+  menu.innerHTML = opts.map(o => {
+    const active = o.isReset ? !currentManual : effective === o.value;
+    return `<button type="button" role="menuitem"
+              data-value="${o.value}"
+              data-reset="${o.isReset ? '1' : '0'}"
+              class="${o.cls}${active ? ' is-active' : ''}"
+              style="background:${active ? 'rgba(255,255,255,0.06)' : 'none'};
+                     border:none;
+                     color:${o.color};
+                     padding:8px 14px;
+                     text-align:left;
+                     cursor:pointer;
+                     font-size:13px;
+                     font-family:inherit;
+                     font-weight:${active ? '600' : '400'};
+                     display:flex;
+                     align-items:center;
+                     gap:6px;
+                     width:100%">
+              <span>${o.icon}</span> ${o.label}
+            </button>`;
+  }).join('');
+
+  document.body.appendChild(menu);
+
+  const rect = triggerEl.getBoundingClientRect();
+  const MENU_H = menu.offsetHeight || 80;
+  const MENU_W = Math.max(150, menu.offsetWidth || 150);
+  const spaceBelow = window.innerHeight - rect.bottom - 8;
+  const top  = spaceBelow >= MENU_H ? rect.bottom + 4 : Math.max(4, rect.top - MENU_H - 4);
+  const left = Math.max(4, Math.min(rect.left, window.innerWidth - MENU_W - 4));
+
+  menu.style.top   = `${top}px`;
+  menu.style.left  = `${left}px`;
+  menu.style.width = `${MENU_W}px`;
+
+  activeStatusMenu = menu;
+  activeStatusMenuPlayerId = playerId;
+  triggerEl.setAttribute('aria-expanded', 'true');
+
+  menu.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    ev.stopPropagation();
+    if (btn.dataset.reset === '1') {
+      delete appState.manualStates[playerId];
+    } else {
+      appState.manualStates[playerId] = btn.dataset.value;
+    }
+    saveManualStates(appState.manualStates);
+    closeStatusMenu();
+    renderUsers();
+  });
+
+  const firstBtn = menu.querySelector('button');
+  if (firstBtn) firstBtn.focus();
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
-  initModules(); loadCacheFromStorage(); bindUiEvents(); restoreViewPreference(); primerRender();
+  initModules();
+  loadCacheFromStorage();
+  bindUiEvents();
+  restoreViewPreference();
+  primerRender();
+
   if (damageToggle) damageToggle.checked = false;
   if (contarRegenToggle) contarRegenToggle.checked = appState.contarRegen;
   if (battleBonusInput) battleBonusInput.value = appState.battleBonus;
-  if (regenHoursSlider) regenHoursSlider.value = appState.regenHours;
-  if (regenHoursValue) regenHoursValue.textContent = appState.regenHours + 'h';
   syncDamageControls();
+
   refreshAllUnits(false, false, { startCooldown: true });
-  updateFreshnessIndicator(); updateRefreshButton(); startTimerLoop();
-  refreshIntervalId = setInterval(() => { const lastAny = Math.max(...UNITS.map(u => appState.lastFetchTime[u] || 0)); if (Date.now() - lastAny < CONFIG.AUTO_REFRESH_MIN_GAP_MS) return; refreshAllUnits(true, true); }, CONFIG.CACHE_TTL_MS);
+  updateFreshnessIndicator();
+  updateRefreshButton();
+  startTimerLoop();
+
+  refreshIntervalId = setInterval(() => {
+    const lastAny = Math.max(...UNITS.map(u => appState.lastFetchTime[u] || 0));
+    if (Date.now() - lastAny < CONFIG.AUTO_REFRESH_MIN_GAP_MS) return;
+    refreshAllUnits(true, true);
+  }, CONFIG.CACHE_TTL_MS);
 });
 
 function initModules() {
-  WareraCapture.init({ getState: () => appState, calcDamagePotential, formatDmg, formatTimer, truncateText: WareraUtils.truncateText, notify: mostrarNotificacion });
-  WareraPress.init({ getPlayerById: id => appState.playersById.get(id), copyPlayerCapture: player => copyPlayerCapture(player), holdMs: CONFIG.HOLD_MS });
-  WareraRender.init({ getState: () => appState, getFilteredAndSortedPlayers, escapeHtml, formatDmg, formatTimer, calcDamagePotential, DEBUFF_WINDOW_MS: CONFIG.DEBUFF_WINDOW_MS, usersContainer, damagePanel, damagePanelMeta, damagePanelTotal, debuffPanel, debuffPanelMeta, debuffPanelBody });
-  WareraContractsHud.init({ getMuId: () => appState.selectedUnit === 'Uchiha' ? CONFIG.UNIT_UCHIHA_ID : CONFIG.UNIT_AKATSUKI_ID, getEnabled: () => appState.contractsHudEnabled, els: {
-    hud: $('contractsHud'), ageBar: $('contractsHudAgeBar'), battleName: $('contractsHudBattleName'), battleLink: $('contractsHudBattleLink'), detected: $('contractsHudDetected'), timerText: $('contractsHudTimerText'), minDmg: $('contractsHudMinDmg'), payout: $('contractsHudPayout'), perK: $('contractsHudPerK'), completeBtn: $('contractsHudComplete'), progressFill: $('contractsHudProgressFill'),
-  }});
+  WareraCapture.init({
+    getState: () => appState,
+    calcDamagePotential,
+    formatDmg,
+    formatTimer,
+    truncateText: WareraUtils.truncateText,
+    notify: mostrarNotificacion
+  });
+
+  WareraPress.init({
+    getPlayerById: id => appState.playersById.get(id),
+    copyPlayerCapture: player => copyPlayerCapture(player),
+    holdMs: CONFIG.HOLD_MS
+  });
+
+  WareraRender.init({
+    getState: () => appState,
+    getFilteredAndSortedPlayers,
+    getManualState: (id) => appState.manualStates[id] || null,
+    escapeHtml,
+    formatDmg,
+    formatTimer,
+    calcDamagePotential,
+    DEBUFF_WINDOW_MS: CONFIG.DEBUFF_WINDOW_MS,
+    usersContainer,
+    damagePanel,
+    damagePanelMeta,
+    damagePanelTotal,
+    debuffPanel,
+    debuffPanelMeta,
+    debuffPanelBody
+  });
+
+  WareraContractsHud.init({
+    getMuId: () => appState.selectedUnit === 'Uchiha' ? CONFIG.UNIT_UCHIHA_ID : CONFIG.UNIT_AKATSUKI_ID,
+    getEnabled: () => appState.contractsHudEnabled,
+    els: {
+      hud:          document.getElementById('contractsHud'),
+      ageBar:       document.getElementById('contractsHudAgeBar'),
+      battleName:   document.getElementById('contractsHudBattleName'),
+      battleLink:   document.getElementById('contractsHudBattleLink'),
+      detected:     document.getElementById('contractsHudDetected'),
+      timerText:    document.getElementById('contractsHudTimerText'),
+      minDmg:       document.getElementById('contractsHudMinDmg'),
+      payout:       document.getElementById('contractsHudPayout'),
+      perK:         document.getElementById('contractsHudPerK'),
+      completeBtn:  document.getElementById('contractsHudComplete'),
+      progressFill: document.getElementById('contractsHudProgressFill'),
+    }
+  });
 }
 
 function bindUiEvents() {
-  openApiBtn.onclick = () => { sidebar.classList.add('open'); overlay.classList.add('active'); };
-  closeApiBtn.onclick = cerrarSidebar; overlay.onclick = cerrarSidebar;
+  openApiBtn.addEventListener('click', () => {
+    sidebar.inert = false;
+    sidebar.classList.add('open');
+    overlay.classList.add('active');
+    closeApiBtn.focus();
+  });
+  closeApiBtn.addEventListener('click', cerrarSidebar);
+  overlay.addEventListener('click', cerrarSidebar);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (sidebar.classList.contains('open')) cerrarSidebar();
+  });
+
+  document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement)) return;
+    if (img.dataset.avatarFallback === '1') return;
+    img.dataset.avatarFallback = '1';
+    const name = img.alt || '?';
+    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=334155&color=fff`;
+  }, true);
+
   if (apiKeyInput) apiKeyInput.value = localStorage.getItem('warera_api_key') || '';
-  if (forceDownloadToggle) { forceDownloadToggle.checked = appState.forceDownload; forceDownloadToggle.onchange = (e) => { appState.forceDownload = e.target.checked; localStorage.setItem('warera_force_download', appState.forceDownload ? '1' : '0'); mostrarNotificacion(appState.forceDownload ? 'Capturas en PNG.' : 'Capturas en portapapeles.', 1500, 'success'); }; }
-  if (saveKeyBtn) saveKeyBtn.onclick = () => { const key = apiKeyInput.value.trim(); if (key) { localStorage.setItem('warera_api_key', key); mostrarNotificacion('Key guardada.', 1500, 'success'); } else { localStorage.removeItem('warera_api_key'); mostrarNotificacion('Sin key.', 1500, 'success'); } rateLimitedUntil = 0; refreshCooldown.until = 0; refreshAllUnits(true, false, { startCooldown: true }); cerrarSidebar(); };
-  if (clearKeyBtn) clearKeyBtn.onclick = () => { localStorage.removeItem('warera_api_key'); if (apiKeyInput) apiKeyInput.value = ''; mostrarNotificacion('Key borrada.', 1500, 'success'); rateLimitedUntil = 0; refreshCooldown.until = 0; refreshAllUnits(true, false, { startCooldown: true }); };
-  
-  document.querySelectorAll('[data-vista]').forEach(btn => btn.onclick = (e) => { document.querySelectorAll('[data-vista]').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active'); appState.vistaActual = e.currentTarget.dataset.vista; appState.eleccionManual = true; localStorage.setItem('vistaPreferida', appState.vistaActual); renderUsers(); cerrarSidebar(); });
-  document.querySelectorAll('[data-unit]').forEach(btn => btn.onclick = (e) => { document.querySelectorAll('[data-unit]').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active'); appState.selectedUnit = e.currentTarget.dataset.unit; if (appState.cachedData[appState.selectedUnit]) { appState.playersData = appState.cachedData[appState.selectedUnit]; rebuildPlayerIndex(); } renderUsers(); updateFreshnessIndicator(); const newMuId = appState.selectedUnit === 'Uchiha' ? CONFIG.UNIT_UCHIHA_ID : CONFIG.UNIT_AKATSUKI_ID; fetchApiData(false, appState.selectedUnit, false); WareraContractsHud.refresh(newMuId); });
-  document.querySelectorAll('[data-mode]').forEach(btn => btn.onclick = (e) => { document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active'); appState.selectedMode = e.currentTarget.dataset.mode; renderUsers(); });
-  document.querySelectorAll('[data-order]').forEach(btn => btn.onclick = (e) => { document.querySelectorAll('[data-order]').forEach(b => b.classList.remove('active')); e.currentTarget.classList.add('active'); appState.ordenActual = e.currentTarget.dataset.order; renderUsers(); });
-  smartSortToggle.onchange = (e) => { appState.smartSort = e.target.checked; syncDamageControls(); renderUsers(); };
-  if (damageToggle) damageToggle.onchange = (e) => { appState.damagePanelActive = e.target.checked; syncDamageControls(); renderUsers(); };
-  if (contarRegenToggle) contarRegenToggle.onchange = (e) => { appState.contarRegen = e.target.checked; try { localStorage.setItem('warera_contar_regen', appState.contarRegen ? '1' : '0'); } catch {} syncDamageControls(); WareraRender.renderDamagePanel(); WareraRender.actualizarDañosEnVista(); };
-  if (battleBonusInput) battleBonusInput.oninput = (e) => { const v = Math.max(0, Math.min(200, Number(e.target.value) || 0)); if (v === appState.battleBonus) return; appState.battleBonus = v; saveBattleBonusState(v); WareraRender.renderDamagePanel(); WareraRender.actualizarDañosEnVista(); };
-  if (regenHoursSlider) regenHoursSlider.oninput = (e) => { const v = parseInt(e.target.value); appState.regenHours = v; if (regenHoursValue) regenHoursValue.textContent = v + 'h'; try { localStorage.setItem('warera_regen_hours', v); } catch {} WareraRender.renderDamagePanel(); WareraRender.actualizarDañosEnVista(); };
-  refreshBtn.onclick = () => { if (refreshBtn.disabled) return; refreshAllUnits(true, false, { startCooldown: true }); };
-  copyCaptureBtn.onclick = copyCurrentCapture; WareraPress.initPressToCapture();
 
-  const contractsHudToggle = $('contractsHudToggle');
-  if (contractsHudToggle) { contractsHudToggle.checked = appState.contractsHudEnabled; contractsHudToggle.onchange = (e) => { appState.contractsHudEnabled = e.target.checked; localStorage.setItem('warera_contracts_hud_enabled', appState.contractsHudEnabled ? '1' : '0'); WareraContractsHud.refresh(); }; }
+  if (forceDownloadToggle) {
+    forceDownloadToggle.checked = appState.forceDownload;
+    forceDownloadToggle.addEventListener('change', (e) => {
+      appState.forceDownload = e.target.checked;
+      localStorage.setItem('warera_force_download', appState.forceDownload ? '1' : '0');
+      mostrarNotificacion(
+        appState.forceDownload
+          ? 'Capturas se descargarán como PNG.'
+          : 'Capturas usarán portapapeles o compartir.',
+        1500, 'success'
+      );
+    });
+  }
 
-  // ===== MENÚ GLOBAL BUFF/TIRED =====
-  const statusMenu = $('statusDropdownMenu');
-  let currentMenuPlayerId = null;
+  if (saveKeyBtn) {
+    saveKeyBtn.addEventListener('click', () => {
+      const key = apiKeyInput.value.trim();
+      if (key) {
+        localStorage.setItem('warera_api_key', key);
+        mostrarNotificacion('API Key guardada. Reconsultando…', 1500, 'success');
+      } else {
+        localStorage.removeItem('warera_api_key');
+        mostrarNotificacion('Sin key: usando API pública.', 1500, 'success');
+      }
+      rateLimitedUntil = 0;
+      refreshCooldown.until = 0;
+      refreshAllUnits(true, false, { startCooldown: true });
+      cerrarSidebar();
+    });
+  }
 
-  document.addEventListener('click', (e) => {
-    const trigger = e.target.closest('[data-toggle-menu]');
-    if (!trigger && statusMenu && !statusMenu.hidden && !e.target.closest('#statusDropdownMenu')) { statusMenu.hidden = true; return; }
-    if (trigger) {
-      e.stopPropagation();
-      currentMenuPlayerId = trigger.dataset.toggleMenu;
-      const rect = trigger.getBoundingClientRect();
-      statusMenu.style.top = (rect.bottom + 5) + 'px';
-      statusMenu.style.left = rect.left + 'px';
-      statusMenu.hidden = false;
+  if (clearKeyBtn) {
+    clearKeyBtn.addEventListener('click', () => {
+      localStorage.removeItem('warera_api_key');
+      if (apiKeyInput) apiKeyInput.value = '';
+      mostrarNotificacion('API Key borrada.', 1500, 'success');
+      rateLimitedUntil = 0;
+      refreshCooldown.until = 0;
+      refreshAllUnits(true, false, { startCooldown: true });
+    });
+  }
+
+  document.querySelectorAll('[data-vista]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('[data-vista]').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      appState.vistaActual = e.currentTarget.dataset.vista;
+      appState.eleccionManual = true;
+      localStorage.setItem('vistaPreferida', appState.vistaActual);
+      renderUsers();
+      cerrarSidebar();
+    });
+  });
+
+  document.querySelectorAll('[data-unit]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('[data-unit]').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      appState.selectedUnit = e.currentTarget.dataset.unit;
+      if (appState.cachedData[appState.selectedUnit]) {
+        appState.playersData = appState.cachedData[appState.selectedUnit];
+        rebuildPlayerIndex();
+      }
+      renderUsers();
+      updateFreshnessIndicator();
+      const newMuId = appState.selectedUnit === 'Uchiha'
+        ? CONFIG.UNIT_UCHIHA_ID
+        : CONFIG.UNIT_AKATSUKI_ID;
+      fetchApiData(false, appState.selectedUnit, false);
+      WareraContractsHud.refresh(newMuId);
+    });
+  });
+
+  document.querySelectorAll('[data-mode]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      appState.selectedMode = e.currentTarget.dataset.mode;
+      renderUsers();
+    });
+  });
+
+  document.querySelectorAll('[data-order]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('[data-order]').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      appState.ordenActual = e.currentTarget.dataset.order;
+      renderUsers();
+    });
+  });
+
+  smartSortToggle.addEventListener('change', (e) => {
+    appState.smartSort = e.target.checked;
+    if (appState.smartSort) {
+      appState.selectedMode = 'ALL';
+      document.querySelectorAll('[data-mode]').forEach(b =>
+        b.classList.toggle('active', b.dataset.mode === 'ALL')
+      );
+    }
+    syncDamageControls();
+    renderUsers();
+  });
+
+  if (damageToggle) {
+    damageToggle.addEventListener('change', (e) => {
+      appState.damagePanelActive = e.target.checked;
+      syncDamageControls();
+      renderUsers();
+    });
+  }
+
+  if (contarRegenToggle) {
+    contarRegenToggle.addEventListener('change', (e) => {
+      appState.contarRegen = e.target.checked;
+      try { localStorage.setItem('warera_contar_regen', appState.contarRegen ? '1' : '0'); } catch {}
+      syncDamageControls();
+      WareraRender.renderDamagePanel();
+      WareraRender.actualizarDañosEnVista();
+    });
+  }
+
+  if (battleBonusInput) {
+    battleBonusInput.addEventListener('input', (e) => {
+      const raw = Number(e.target.value);
+      const v = Math.max(0, Math.min(200, Number.isFinite(raw) ? raw : 0));
+      if (e.target.value !== '' && raw !== v) e.target.value = String(v);
+      if (v === appState.battleBonus) return;
+      appState.battleBonus = v;
+      saveBattleBonusState(v);
+      WareraRender.renderDamagePanel();
+      WareraRender.actualizarDañosEnVista();
+    });
+    battleBonusInput.addEventListener('blur', () => {
+      battleBonusInput.value = String(appState.battleBonus);
+    });
+  }
+
+  refreshBtn.addEventListener('click', () => {
+    if (refreshBtn.disabled) return;
+    refreshAllUnits(true, false, { startCooldown: true });
+  });
+
+  copyCaptureBtn.addEventListener('click', copyCurrentCapture);
+  WareraPress.initPressToCapture();
+
+  const contractsHudToggle = document.getElementById('contractsHudToggle');
+  if (contractsHudToggle) {
+    contractsHudToggle.checked = appState.contractsHudEnabled;
+    contractsHudToggle.addEventListener('change', (e) => {
+      appState.contractsHudEnabled = e.target.checked;
+      localStorage.setItem('warera_contracts_hud_enabled', appState.contractsHudEnabled ? '1' : '0');
+      WareraContractsHud.refresh();
+    });
+  }
+
+  let resizeTimeout;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      if (!appState.eleccionManual) {
+        determinarVistaAutomatica();
+        renderUsers();
+      }
+    }, 300);
+  });
+
+  // ===== App Switcher =====
+  const appSwitcherTrigger = document.getElementById('appSwitcherTrigger');
+  const appSwitcherOverlay = document.getElementById('appSwitcherOverlay');
+  const appSwitcherMenu    = document.getElementById('appSwitcherMenu');
+  const closeSwitcherBtn   = document.getElementById('closeSwitcherBtn');
+
+  if (appSwitcherTrigger && appSwitcherOverlay && appSwitcherMenu) {
+    const openSwitcher = () => {
+      appSwitcherOverlay.hidden = false;
+      appSwitcherMenu.hidden = false;
+      appSwitcherTrigger.setAttribute('aria-expanded', 'true');
+      requestAnimationFrame(() => {
+        appSwitcherOverlay.classList.add('show');
+        appSwitcherMenu.classList.add('show');
+      });
+      closeSwitcherBtn.focus();
+    };
+    const closeSwitcher = () => {
+      if (appSwitcherMenu.hidden) return;
+      appSwitcherTrigger.setAttribute('aria-expanded', 'false');
+      appSwitcherOverlay.classList.remove('show');
+      appSwitcherMenu.classList.remove('show');
+      setTimeout(() => {
+        appSwitcherOverlay.hidden = true;
+        appSwitcherMenu.hidden = true;
+      }, 250);
+      appSwitcherTrigger.focus();
+    };
+    appSwitcherTrigger.addEventListener('click', openSwitcher);
+    appSwitcherTrigger.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSwitcher(); }
+    });
+    closeSwitcherBtn.addEventListener('click', closeSwitcher);
+    appSwitcherOverlay.addEventListener('click', closeSwitcher);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !appSwitcherMenu.hidden) closeSwitcher();
+    });
+    document.querySelectorAll('.app-switcher-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.target;
+        if (target === 'warroom') {
+          const path = window.location.pathname;
+          if (path.endsWith('index.html') || path === '/' || path.endsWith('/')) closeSwitcher();
+          else window.location.href = 'index.html';
+        } else if (target === 'classroom') {
+          window.open('classroom.html', '_blank');
+          closeSwitcher();
+        }
+      });
+    });
+  }
+
+  // ===== Slider regen =====
+  const regenHoursSlider = document.getElementById('regenHoursSlider');
+  const regenHoursValue  = document.getElementById('regenHoursValue');
+
+  const updateSliderUI = () => {
+    if (!regenHoursSlider || !regenHoursValue) return;
+    regenHoursSlider.value = appState.regenHours;
+    regenHoursValue.textContent = `${appState.regenHours}h`;
+  };
+  if (regenHoursSlider) {
+    updateSliderUI();
+    regenHoursSlider.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value);
+      appState.regenHours = v;
+      regenHoursValue.textContent = `${v}h`;
+      try { localStorage.setItem('warera_regen_hours', v); } catch {}
+      WareraRender.renderDamagePanel();
+      WareraRender.actualizarDañosEnVista();
+    });
+  }
+
+  window.addEventListener('hud-contract-updated', (e) => {
+    const detail = e.detail;
+    if (detail && detail.id) {
+      if (appState.activeContractId !== detail.id) {
+        appState.activeContractId = detail.id;
+        appState.regenHours = detail.hours;
+        updateSliderUI();
+        WareraRender.renderDamagePanel();
+        WareraRender.actualizarDañosEnVista();
+      }
+    } else {
+      if (appState.activeContractId !== null) {
+        appState.activeContractId = null;
+        appState.regenHours = 8;
+        updateSliderUI();
+        WareraRender.renderDamagePanel();
+        WareraRender.actualizarDañosEnVista();
+      }
     }
   });
 
-  if (statusMenu) {
-    statusMenu.onclick = (e) => {
-      const btn = e.target.closest('[data-set-status]');
-      if (!btn || !currentMenuPlayerId) return;
-      const status = btn.dataset.setStatus;
-      if (status === 'tired') appState.tiredPlayers[currentMenuPlayerId] = true;
-      else delete appState.tiredPlayers[currentMenuPlayerId];
-      localStorage.setItem('warera_tired_players', JSON.stringify(appState.tiredPlayers));
-      statusMenu.hidden = true;
-      renderUsers();
-    };
-  }
-  window.addEventListener('scroll', () => { if (statusMenu && !statusMenu.hidden) statusMenu.hidden = true; }, { passive: true });
+  // ===== MINI MENÚ BUFF/TIRED — handlers globales =====
 
-  let resizeTimeout;
-  window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { if (!appState.eleccionManual) { determinarVistaAutomatica(); renderUsers(); } }, 300); });
+  document.addEventListener('click', (e) => {
+    // Menú abierto → clic dentro del menú lo maneja su propio listener
+    if (e.target.closest('.status-menu')) return;
+
+    // Resolver trigger (nuevo o viejo)
+    const resolved = resolveTriggerFromEvent(e);
+
+    if (resolved) {
+      e.preventDefault();
+      if (activeStatusMenu && activeStatusMenuPlayerId === resolved.playerId) {
+        closeStatusMenu();
+      } else {
+        openStatusMenu(resolved.el, resolved.playerId);
+      }
+      return;
+    }
+
+    // Clic fuera → cerrar
+    if (activeStatusMenu) closeStatusMenu();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && activeStatusMenu) {
+      closeStatusMenu();
+      return;
+    }
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.status-trigger')) {
+      e.preventDefault();
+      const t = e.target.closest('.status-trigger');
+      openStatusMenu(t, t.dataset.statusTrigger);
+    }
+  });
+
+  window.addEventListener('scroll', closeStatusMenu, { capture: true, passive: true });
+  window.addEventListener('resize', closeStatusMenu, { passive: true });
+
+  // Bloquear WareraPress para que un clic no inicie una pulsación larga
+  // (delegación en fase de burbuja sobre usersContainer)
+  usersContainer.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('[data-status-trigger]') || e.target.closest('.pill-badge')) {
+      e.stopPropagation();
+    }
+  }, false);
+
+  // Menú en document: bloquear también a nivel document (por si el stopPropagation de arriba
+  // no se ejecutó porque el trigger quedó fuera de usersContainer)
+  document.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('[data-status-trigger]') || e.target.closest('.pill-badge')) {
+      // No preventDefault: dejar que el click se dispare
+    }
+  }, true);
 }
 
-function cerrarSidebar() { sidebar.classList.remove('open'); overlay.classList.remove('active'); }
-function determinarVistaAutomatica() { if (appState.eleccionManual) return; appState.vistaActual = window.innerWidth <= 768 ? 'compacta' : 'tabla'; syncVistaButtons(); }
-function syncVistaButtons() { document.querySelectorAll('[data-vista]').forEach(btn => btn.classList.toggle('active', btn.dataset.vista === appState.vistaActual)); }
-function restoreViewPreference() { const v = localStorage.getItem('vistaPreferida'); if (v) { appState.vistaActual = v; appState.eleccionManual = true; } else determinarVistaAutomatica(); syncVistaButtons(); }
-function primerRender() { if (appState.cachedData[appState.selectedUnit]) { appState.playersData = appState.cachedData[appState.selectedUnit]; rebuildPlayerIndex(); renderUsers(); } }
-function rebuildPlayerIndex() { appState.playersById.clear(); for (const p of appState.playersData) appState.playersById.set(p.id, p); }
+function cerrarSidebar() {
+  const wasOpen = sidebar.classList.contains('open');
+  sidebar.classList.remove('open');
+  overlay.classList.remove('active');
+  sidebar.inert = true;
+  if (wasOpen) openApiBtn.focus();
+}
 
-function saveCacheToStorage() { try { const cache = { version: CONFIG.CACHE_VERSION, Uchiha: { data: appState.cachedData.Uchiha, time: appState.lastFetchTime.Uchiha }, Akatsuki: { data: appState.cachedData.Akatsuki, time: appState.lastFetchTime.Akatsuki } }; localStorage.setItem(CONFIG.CACHE_STORAGE_KEY, JSON.stringify(cache)); } catch (e) { console.warn('Cache error', e); } }
-function loadCacheFromStorage() { try { const raw = localStorage.getItem(CONFIG.CACHE_STORAGE_KEY); if (!raw) return; const cache = JSON.parse(raw); if (cache.version !== CONFIG.CACHE_VERSION) { localStorage.removeItem(CONFIG.CACHE_STORAGE_KEY); return; } UNITS.forEach(unit => { const entry = cache[unit]; if (entry && entry.data) { appState.cachedData[unit] = entry.data; appState.lastFetchTime[unit] = entry.time || 0; } }); } catch (e) { console.warn('Cache load error', e); } }
+function determinarVistaAutomatica() {
+  if (appState.eleccionManual) return;
+  appState.vistaActual = window.innerWidth <= 768 ? 'compacta' : 'tabla';
+  syncVistaButtons();
+}
 
-function mostrarNotificacion(mensaje = 'Información cargada', duracion = 1000, tipo = 'success') {
-  const container = $('toastContainer'); if (!container) return;
-  const toastEl = document.createElement('div'); toastEl.className = `toast ${tipo}`; toastEl.innerHTML = `<span class="toast-message">${mensaje}</span><div class="toast-bar" style="width:100%"></div>`;
-  container.appendChild(toastEl); requestAnimationFrame(() => toastEl.classList.add('show'));
-  const barEl = toastEl.querySelector('.toast-bar'); const startTime = Date.now();
-  const intervalo = setInterval(() => { const elapsed = Date.now() - startTime; const progress = Math.max(0, 1 - elapsed / duracion); barEl.style.width = (progress * 100) + '%'; if (elapsed >= duracion) { clearInterval(intervalo); toastEl.classList.remove('show'); toastEl.classList.add('hiding'); setTimeout(() => toastEl.remove(), 320); } }, 30);
+function syncVistaButtons() {
+  document.querySelectorAll('[data-vista]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.vista === appState.vistaActual);
+  });
+}
+
+function restoreViewPreference() {
+  const vistaGuardada = localStorage.getItem('vistaPreferida');
+  if (vistaGuardada) {
+    appState.vistaActual = vistaGuardada;
+    appState.eleccionManual = true;
+  } else {
+    determinarVistaAutomatica();
+  }
+  syncVistaButtons();
+}
+
+function primerRender() {
+  if (appState.cachedData[appState.selectedUnit]) {
+    appState.playersData = appState.cachedData[appState.selectedUnit];
+    rebuildPlayerIndex();
+    renderUsers();
+  }
+}
+
+function rebuildPlayerIndex() {
+  appState.playersById.clear();
+  for (const p of appState.playersData) appState.playersById.set(p.id, p);
+}
+
+function saveCacheToStorage() {
+  try {
+    const cache = {
+      version: CONFIG.CACHE_VERSION,
+      Uchiha:   { data: appState.cachedData.Uchiha,   time: appState.lastFetchTime.Uchiha },
+      Akatsuki: { data: appState.cachedData.Akatsuki, time: appState.lastFetchTime.Akatsuki }
+    };
+    localStorage.setItem(CONFIG.CACHE_STORAGE_KEY, JSON.stringify(cache));
+  } catch (e) { console.warn('No se pudo guardar la caché:', e); }
+}
+
+function loadCacheFromStorage() {
+  try {
+    const raw = localStorage.getItem(CONFIG.CACHE_STORAGE_KEY);
+    if (!raw) return;
+    const cache = JSON.parse(raw);
+    if (cache.version !== CONFIG.CACHE_VERSION) {
+      localStorage.removeItem(CONFIG.CACHE_STORAGE_KEY);
+      return;
+    }
+    UNITS.forEach(unit => {
+      const entry = cache[unit];
+      if (entry && entry.data) {
+        appState.cachedData[unit] = entry.data;
+        appState.lastFetchTime[unit] = entry.time || 0;
+      }
+    });
+  } catch (e) { console.warn('No se pudo cargar la caché:', e); }
+}
+
+function mostrarNotificacion(mensaje = 'Información estratégica cargada', duracion = 1000, tipo = 'success') {
+  if (toast._intervalo) clearInterval(toast._intervalo);
+  toastMessage.textContent = mensaje;
+  toast.classList.remove('success', 'error');
+  toast.classList.add(tipo, 'show');
+  toastBar.style.width = '100%';
+
+  const startTime = Date.now();
+  toast._intervalo = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.max(0, 1 - elapsed / duracion);
+    toastBar.style.width = (progress * 100) + '%';
+    if (elapsed >= duracion) {
+      clearInterval(toast._intervalo);
+      toast._intervalo = null;
+      toast.classList.remove('show');
+    }
+  }, 30);
 }
 
 function updateFreshnessIndicator() {
   if (!freshnessDot) return;
-  if (Date.now() < rateLimitedUntil) { freshnessDot.style.backgroundColor = '#f59e0b'; freshnessDot.style.boxShadow = '0 0 8px #f59e0b'; freshnessDot.title = `Límite de API. Reintento en ${Math.ceil((rateLimitedUntil - Date.now()) / 1000)}s`; return; }
-  const times = UNITS.map(u => appState.lastFetchTime[u]).filter(t => t > 0);
-  if (times.length === 0) { freshnessDot.style.backgroundColor = '#64748b'; freshnessDot.style.boxShadow = '0 0 8px rgba(100, 116, 139, 0.6)'; freshnessDot.title = 'Sin datos'; return; }
-  const lastFetch = Math.max(...times); const age = Date.now() - lastFetch; const ratio = Math.min(1, age / CONFIG.CACHE_TTL_MS);
-  let hue; if (ratio < 0.5) hue = 142 + (30 - 142) * (ratio / 0.5); else hue = 30 + (0 - 30) * ((ratio - 0.5) / 0.5);
-  const color = `hsl(${hue}, 71%, 45%)`; freshnessDot.style.backgroundColor = color; freshnessDot.style.boxShadow = `0 0 8px ${color}`;
-  const seconds = Math.floor(age / 1000); freshnessDot.title = seconds < 60 ? `Datos frescos (hace ${seconds}s)` : `Datos con ${Math.floor(seconds / 60)}m ${seconds % 60}s de antigüedad`;
+  if (Date.now() < rateLimitedUntil) {
+    freshnessDot.style.backgroundColor = '#f59e0b';
+    freshnessDot.style.boxShadow = '0 0 8px #f59e0b';
+    const remaining = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
+    freshnessDot.title = `Límite de API alcanzado. Reintento en ${remaining}s`;
+    return;
+  }
+  const lastFetch = appState.lastFetchTime[appState.selectedUnit] || 0;
+  if (!lastFetch) {
+    freshnessDot.style.backgroundColor = '#64748b';
+    freshnessDot.style.boxShadow = '0 0 8px rgba(100, 116, 139, 0.6)';
+    freshnessDot.title = 'Sin datos';
+    return;
+  }
+  const age = Date.now() - lastFetch;
+  const ratio = Math.min(1, age / CONFIG.CACHE_TTL_MS);
+  let hue;
+  if (ratio < 0.5) hue = 142 + (30 - 142) * (ratio / 0.5);
+  else             hue = 30 + (0 - 30) * ((ratio - 0.5) / 0.5);
+  const color = `hsl(${hue}, 71%, 45%)`;
+  freshnessDot.style.backgroundColor = color;
+  freshnessDot.style.boxShadow = `0 0 8px ${color}`;
+  const seconds = Math.floor(age / 1000);
+  freshnessDot.title = seconds < 60
+    ? `Datos frescos (hace ${seconds}s)`
+    : `Datos con ${Math.floor(seconds / 60)}m ${seconds % 60}s de antigüedad`;
 }
 
 function updateRefreshButton() {
-  const now = Date.now(); const inCooldown = now < refreshCooldown.until; const isLoading = pendingFetches > 0;
-  if (isLoading) { refreshBtn.disabled = true; refreshBtn.classList.remove('cooldown'); refreshDataLabel.textContent = '⏳ Cargando...'; refreshDataProgress.style.width = '0%'; return; }
-  if (inCooldown) { const remaining = refreshCooldown.until - now; const pct = Math.max(0, Math.min(100, (remaining / refreshCooldown.total) * 100)); refreshBtn.disabled = true; refreshBtn.classList.add('cooldown'); refreshDataLabel.textContent = `⏳ Espera ${Math.ceil(remaining / 1000)}s`; refreshDataProgress.style.width = pct + '%'; return; }
-  refreshBtn.disabled = false; refreshBtn.classList.remove('cooldown'); refreshDataLabel.textContent = '🔄 Actualizar Datos'; refreshDataProgress.style.width = '0%';
+  const now = Date.now();
+  const inCooldown = now < refreshCooldown.until;
+  const isLoading = pendingFetches > 0;
+  if (isLoading) {
+    refreshBtn.disabled = true;
+    refreshBtn.classList.remove('cooldown');
+    refreshDataLabel.textContent = '⏳ Cargando...';
+    refreshDataProgress.style.width = '0%';
+    return;
+  }
+  if (inCooldown) {
+    const remaining = refreshCooldown.until - now;
+    const pct = Math.max(0, Math.min(100, (remaining / refreshCooldown.total) * 100));
+    refreshBtn.disabled = true;
+    refreshBtn.classList.add('cooldown');
+    refreshDataLabel.textContent = `⏳ Espera ${Math.ceil(remaining / 1000)}s`;
+    refreshDataProgress.style.width = pct + '%';
+    return;
+  }
+  refreshBtn.disabled = false;
+  refreshBtn.classList.remove('cooldown');
+  refreshDataLabel.textContent = '🔄 Actualizar Datos';
+  refreshDataProgress.style.width = '0%';
 }
 
-function updateApiBanner() { /* ... dejas tu lógica anterior ... */ }
+function updateApiBanner() {
+  if (!apiBanner) return;
+  const mainState = decideMainState();
+  if (mainState !== 'data') { apiBanner.hidden = true; return; }
+  if (appState.apiStatus === 'limited') {
+    apiBanner.hidden = false;
+    apiBanner.className = 'api-banner limited';
+    apiBannerText.textContent = '⚠️ API AL LÍMITE · INFO DE CACHÉ';
+    return;
+  }
+  if (appState.apiStatus === 'error') {
+    const unit = appState.selectedUnit;
+    const lastFetch = appState.lastFetchTime[unit];
+    const cacheAge = lastFetch ? Date.now() - lastFetch : 0;
+    const min = Math.floor(cacheAge / 60000);
+    const sec = Math.floor((cacheAge % 60000) / 1000);
+    const ageTxt = min > 0 ? `${min}m ${sec}s` : `${sec}s`;
+    apiBanner.hidden = false;
+    apiBanner.className = 'api-banner error';
+    apiBannerText.textContent = `⚠️ API NO DISPONIBLE · INFO DE CACHÉ (${ageTxt})`;
+    return;
+  }
+  apiBanner.hidden = true;
+}
 
 function decideMainState() {
-  const unit = appState.selectedUnit; const lastFetch = appState.lastFetchTime[unit]; const cacheAge = lastFetch ? Date.now() - lastFetch : Infinity;
-  const apiDown = appState.apiStatus === 'limited' || appState.apiStatus === 'error'; const cacheExpired = cacheAge > CONFIG.CACHE_MAX_AGE_MS; const hasData = appState.playersData.length > 0;
-  if (apiDown && (!hasData || cacheExpired)) return 'api-down'; if (hasData) return 'data'; if (appState.apiStatus === 'loading') return 'loading'; return 'empty';
+  const unit = appState.selectedUnit;
+  const lastFetch = appState.lastFetchTime[unit];
+  const cacheAge = lastFetch ? Date.now() - lastFetch : Infinity;
+  const apiDown = appState.apiStatus === 'limited' || appState.apiStatus === 'error';
+  const cacheExpired = cacheAge > CONFIG.CACHE_MAX_AGE_MS;
+  const hasData = appState.playersData.length > 0;
+  if (apiDown && (!hasData || cacheExpired)) return 'api-down';
+  if (hasData) return 'data';
+  if (appState.apiStatus === 'loading') return 'loading';
+  return 'empty';
 }
 
 async function fetchApiData(force = false, unitArg = null, silent = false) {
-  const unit = unitArg || appState.selectedUnit; const isDisplayedUnit = appState.selectedUnit === unit; const currentUnitId = unit === 'Uchiha' ? CONFIG.UNIT_UCHIHA_ID : CONFIG.UNIT_AKATSUKI_ID; const now = Date.now();
-  if (!force && now < rateLimitedUntil) { if (isDisplayedUnit && appState.cachedData[unit]) { appState.playersData = appState.cachedData[unit]; rebuildPlayerIndex(); renderUsers(); } return 'limited'; }
-  if (!force && appState.cachedData[unit] && (now - appState.lastFetchTime[unit] < CONFIG.CACHE_TTL_MS)) { if (isDisplayedUnit) { appState.playersData = appState.cachedData[unit]; rebuildPlayerIndex(); renderUsers(); } return 'ok'; }
+  const unit = unitArg || appState.selectedUnit;
+  const isDisplayedUnit = appState.selectedUnit === unit;
+  const currentUnitId = unit === 'Uchiha' ? CONFIG.UNIT_UCHIHA_ID : CONFIG.UNIT_AKATSUKI_ID;
+  const now = Date.now();
+
+  // Rate limit activo: no insistir
+  if (now < rateLimitedUntil) {
+    const remaining = rateLimitedUntil - now;
+    refreshCooldown.total = Math.max(CONFIG.MANUAL_COOLDOWN_MS, remaining);
+    refreshCooldown.until = Math.max(refreshCooldown.until, rateLimitedUntil);
+    updateRefreshButton();
+    if (isDisplayedUnit && appState.cachedData[unit]) {
+      appState.playersData = appState.cachedData[unit];
+      rebuildPlayerIndex();
+      renderUsers();
+    }
+    return 'limited';
+  }
+
+  // Caché válida y no forzado
+  if (!force && appState.cachedData[unit] && (now - appState.lastFetchTime[unit] < CONFIG.CACHE_TTL_MS)) {
+    if (isDisplayedUnit) {
+      appState.playersData = appState.cachedData[unit];
+      rebuildPlayerIndex();
+      renderUsers();
+    }
+    return 'ok';
+  }
+
   setRefreshLoading(true);
+
   try {
     const { players, failures, total, rateLimited } = await WareraAPI.fetchUnitPlayers(currentUnitId);
-    appState.cachedData[unit] = players; appState.lastFetchTime[unit] = Date.now(); saveCacheToStorage();
-    if (appState.selectedUnit === unit) { appState.playersData = players; rebuildPlayerIndex(); }
-    if (!silent && isDisplayedUnit) {
-      if (rateLimited) mostrarNotificacion(`⚠️ Límite de API · ${players.length}/${total}`, 3500, 'error');
-      else if (failures > 0) mostrarNotificacion(`⚠️ ${total - failures}/${total} cargados`, 2500, 'error');
-      else mostrarNotificacion('Información cargada', 1200, 'success');
+
+    appState.cachedData[unit] = players;
+    appState.lastFetchTime[unit] = Date.now();
+    saveCacheToStorage();
+
+    if (appState.selectedUnit === unit) {
+      appState.playersData = players;
+      rebuildPlayerIndex();
     }
+
+    // Limpiar overrides TIRED huérfanos:
+    // si el API ya no reporta BUFF para un jugador, el override deja de tener sentido.
+    let overridesCleaned = false;
+    for (const p of players) {
+      if (p.pillStatus !== 'BUFF' && appState.manualStates[p.id]) {
+        delete appState.manualStates[p.id];
+        overridesCleaned = true;
+      }
+    }
+    if (overridesCleaned) {
+      saveManualStates(appState.manualStates);
+      // Solo re-renderizar si el clan afectado es el que se está mostrando
+      if (isDisplayedUnit) renderUsers();
+    }
+
+    if (!silent && isDisplayedUnit) {
+      if (rateLimited) {
+        mostrarNotificacion(`⚠️ Límite de API · ${players.length}/${total} cargados`, 3500, 'error');
+      } else if (failures > 0) {
+        mostrarNotificacion(`⚠️ ${total - failures}/${total} cargados`, 2500, 'error');
+      } else {
+        mostrarNotificacion('Información estratégica cargada', 1200, 'success');
+      }
+    }
+
     return rateLimited ? 'limited' : 'ok';
   } catch (error) {
     const isRateLimit = error.name === 'RateLimitError';
+
     if (isRateLimit) {
       rateLimitedUntil = Date.now() + CONFIG.RATE_LIMIT_COOLDOWN_MS;
-      if (appState.cachedData[unit] && appState.selectedUnit === unit) { appState.playersData = appState.cachedData[unit]; rebuildPlayerIndex(); if (!silent) mostrarNotificacion('⚠️ Límite de API. Mostrando caché.', 4000, 'error'); } else if (!silent && isDisplayedUnit) mostrarNotificacion('⚠️ Límite de API. Espera un momento.', 4000, 'error');
+      refreshCooldown.total = Math.max(CONFIG.MANUAL_COOLDOWN_MS, CONFIG.RATE_LIMIT_COOLDOWN_MS);
+      refreshCooldown.until = Math.max(refreshCooldown.until, rateLimitedUntil);
+      updateRefreshButton();
+      console.warn(`Rate limit en ${unit}. Cooldown ${CONFIG.RATE_LIMIT_COOLDOWN_MS / 1000}s.`);
+
+      if (appState.cachedData[unit] && appState.selectedUnit === unit) {
+        appState.playersData = appState.cachedData[unit];
+        rebuildPlayerIndex();
+        if (!silent) mostrarNotificacion('⚠️ Límite de API. Mostrando datos guardados.', 4000, 'error');
+      } else if (!silent && isDisplayedUnit) {
+        mostrarNotificacion('⚠️ Límite de API. Espera ~1 minuto.', 4000, 'error');
+      }
       return 'limited';
     }
-    if (appState.cachedData[unit] && appState.selectedUnit === unit) { appState.playersData = appState.cachedData[unit]; rebuildPlayerIndex(); if (!silent) mostrarNotificacion('Sin conexión. Mostrando caché.', 3500, 'error'); } else if (!appState.cachedData[unit] && isDisplayedUnit) { if (!silent) mostrarNotificacion('Error de conexión.', 3500, 'error'); }
-    return 'error';
-  } finally { setRefreshLoading(false); if (isDisplayedUnit) { renderUsers(); updateFreshnessIndicator(); } }
-}
 
-async function refreshAllUnits(force = true, silent = false, options = {}) {
-  if (refreshInFlight) return; refreshInFlight = true; const { startCooldown = false } = options;
-  if (!silent) { appState.apiStatus = 'loading'; renderUsers(); }
-  try {
-    const settled = await Promise.allSettled(UNITS.map(u => fetchApiData(force, u, silent)));
-    const statuses = settled.filter(r => r.status === 'fulfilled').map(r => r.value);
-    let worst = 'ok'; for (const s of statuses) { if (s === 'error') { worst = 'error'; break; } if (s === 'limited') worst = 'limited'; } if (settled.some(r => r.status === 'rejected')) worst = 'error';
-    appState.apiStatus = worst;
+    console.error(`Error consultando API (${unit}):`, error);
+    if (appState.cachedData[unit] && appState.selectedUnit === unit) {
+      appState.playersData = appState.cachedData[unit];
+      rebuildPlayerIndex();
+      if (!silent) mostrarNotificacion('Sin conexión. Mostrando datos guardados.', 3500, 'error');
+    } else if (!appState.cachedData[unit] && isDisplayedUnit) {
+      if (!silent) mostrarNotificacion('Error conectando con la API. Intenta más tarde.', 3500, 'error');
+    }
+    return 'error';
   } finally {
-    if (startCooldown) refreshCooldown.until = Date.now() + CONFIG.MANUAL_COOLDOWN_MS;
-    refreshInFlight = false; WareraContractsHud.refresh(); renderUsers(); updateRefreshButton(); updateFreshnessIndicator();
+    setRefreshLoading(false);
+    if (isDisplayedUnit) {
+      renderUsers();
+      updateFreshnessIndicator();
+    }
   }
 }
 
-function setRefreshLoading(isLoading) { pendingFetches += isLoading ? 1 : -1; if (pendingFetches < 0) pendingFetches = 0; updateRefreshButton(); }
+async function refreshAllUnits(force = true, silent = false, options = {}) {
+  if (refreshInFlight) return;
+  refreshInFlight = true;
+  const { startCooldown = false } = options;
+  if (!silent) {
+    appState.apiStatus = 'loading';
+    renderUsers();
+  }
+  try {
+    const settled = await Promise.allSettled(
+      UNITS.map(u => fetchApiData(force, u, silent))
+    );
+    const statuses = settled.filter(r => r.status === 'fulfilled').map(r => r.value);
+    let worst = 'ok';
+    for (const s of statuses) {
+      if (s === 'error') { worst = 'error'; break; }
+      if (s === 'limited') worst = 'limited';
+    }
+    if (settled.some(r => r.status === 'rejected')) worst = 'error';
+    appState.apiStatus = worst;
+  } finally {
+    if (startCooldown) {
+      const until = Math.max(Date.now() + CONFIG.MANUAL_COOLDOWN_MS, rateLimitedUntil);
+      refreshCooldown.total = Math.max(CONFIG.MANUAL_COOLDOWN_MS, until - Date.now());
+      refreshCooldown.until = until;
+    }
+    refreshInFlight = false;
+    WareraContractsHud.refresh();
+    renderUsers();
+    updateRefreshButton();
+    updateFreshnessIndicator();
+  }
+}
+
+function setRefreshLoading(isLoading) {
+  pendingFetches += isLoading ? 1 : -1;
+  if (pendingFetches < 0) pendingFetches = 0;
+  updateRefreshButton();
+}
 
 function getFilteredAndSortedPlayers() {
-  return WareraUtils.getFilteredAndSortedPlayers(appState.playersData, appState.selectedMode, appState.smartSort, appState.ordenActual, appState.tiredPlayers);
+  return WareraUtils.getFilteredAndSortedPlayers(
+    appState.playersData,
+    appState.selectedMode,
+    appState.smartSort,
+    appState.ordenActual,
+    (player) => appState.manualStates[player.id] || player.pillStatus
+  );
 }
 
 function syncDamageControls() {
   if (!damageToggleGroup) return;
-  const smartOn = !!appState.smartSort; const regenEnabled = smartOn && !!appState.damagePanelActive;
+  const smartOn = !!appState.smartSort;
+  const regenEnabled = smartOn && !!appState.damagePanelActive;
+
   damageToggleGroup.hidden = !smartOn;
-  const modeFilterGroup = $('modeFilterGroup'); const orderFilterGroup = $('orderFilterGroup');
-  if (modeFilterGroup) modeFilterGroup.hidden = smartOn; if (orderFilterGroup) orderFilterGroup.hidden = smartOn;
-  if (damageRegenGroup) { damageRegenGroup.hidden = !smartOn; damageRegenGroup.classList.toggle('disabled', !regenEnabled); if (contarRegenToggle) contarRegenToggle.disabled = !regenEnabled; }
+
+  const modeFilterGroup = document.getElementById('modeFilterGroup');
+  const orderFilterGroup = document.getElementById('orderFilterGroup');
+  if (modeFilterGroup) modeFilterGroup.hidden = smartOn;
+  if (orderFilterGroup) orderFilterGroup.hidden = smartOn;
+
+  if (damageRegenGroup) {
+    damageRegenGroup.hidden = !smartOn;
+    damageRegenGroup.classList.toggle('disabled', !regenEnabled);
+    if (contarRegenToggle) contarRegenToggle.disabled = !regenEnabled;
+  }
   if (damagePanel) damagePanel.hidden = !regenEnabled;
-  const regenSliderRow = $('regenSliderRow');
-  if (regenSliderRow) regenSliderRow.hidden = !(smartOn && appState.damagePanelActive && appState.contarRegen);
-  if (!smartOn) { appState.damagePanelActive = false; if (damageToggle) damageToggle.checked = false; }
+
+  const regenSliderRow = document.getElementById('regenSliderRow');
+  if (regenSliderRow) {
+    const showSlider = smartOn && appState.damagePanelActive && appState.contarRegen;
+    regenSliderRow.hidden = !showSlider;
+  }
+
+  if (!smartOn) {
+    appState.damagePanelActive = false;
+    if (damageToggle) damageToggle.checked = false;
+  }
 }
 
-function renderUsers() { WareraRender.renderUsers(); }
-function updateTimerLoopState(p) {
-  let statusChanged = false, debuffSetChanged = false; const now = Date.now();
-  for (const p of appState.playersData) {
-    if (p.pillStatus !== 'STANDBY' && p.pillEndTime) {
-      const prevRemaining = p.pillRemainingMs; p.pillRemainingMs = p.pillEndTime - now;
-      if (p.pillRemainingMs <= 0) { p.pillRemainingMs = 0; p.pillStatus = 'STANDBY'; p.pillEndTime = null; statusChanged = true; }
-      else if (p.pillStatus === 'DEBUFF') { if (prevRemaining > CONFIG.DEBUFF_WINDOW_MS && p.pillRemainingMs <= CONFIG.DEBUFF_WINDOW_MS) debuffSetChanged = true; }
-    }
-    // Limpieza automática de Tired al entrar en DEBUFF
-    if (p.pillStatus === 'DEBUFF' && appState.tiredPlayers[p.id]) {
-      delete appState.tiredPlayers[p.id];
-      localStorage.setItem('warera_tired_players', JSON.stringify(appState.tiredPlayers));
-      statusChanged = true;
-    }
+function renderUsers() {
+  if (WareraPress.isPressing()) {
+    renderDeferred = true;
+    return;
   }
-  return { statusChanged, debuffSetChanged };
+  closeStatusMenu();
+  renderDeferred = false;
+  updateApiBanner();
+
+  const state = decideMainState();
+
+  if (state === 'api-down') {
+    WareraRender.renderApiDown();
+    WareraRender.renderDamagePanel();
+    WareraRender.renderDebuffPanel();
+    return;
+  }
+  if (state === 'loading') {
+    WareraRender.renderLoading();
+    WareraRender.renderDamagePanel();
+    WareraRender.renderDebuffPanel();
+    return;
+  }
+  if (state === 'empty') {
+    WareraRender.renderEmptyState();
+    WareraRender.renderDamagePanel();
+    WareraRender.renderDebuffPanel();
+    return;
+  }
+
+  const players = getFilteredAndSortedPlayers();
+  if (players.length === 0) {
+    WareraRender.renderEmptyState();
+    WareraRender.renderDamagePanel();
+    WareraRender.renderDebuffPanel();
+    return;
+  }
+
+  if (appState.vistaActual === 'tabla') WareraRender.renderTabla(players);
+  else if (appState.vistaActual === 'compacta') WareraRender.renderCompacta(players);
+  else WareraRender.renderTarjetas(players);
+
+  WareraRender.actualizarTemporizadores();
+  WareraRender.renderDamagePanel();
+  WareraRender.renderDebuffPanel();
 }
 
 function startTimerLoop() {
   if (timerLoopId) return;
   timerLoopId = setInterval(() => {
-    const { statusChanged, debuffSetChanged } = updateTimerLoopState();
+    let statusChanged = false;
+    let debuffSetChanged = false;
+    let overrideCleaned = false;
+    const now = Date.now();
+
+    for (const p of appState.playersData) {
+      if (p.pillStatus !== 'STANDBY' && p.pillEndTime) {
+        const prevRemaining = p.pillRemainingMs;
+        p.pillRemainingMs = p.pillEndTime - now;
+
+        if (p.pillRemainingMs <= 0) {
+          p.pillRemainingMs = 0;
+          p.pillStatus = 'STANDBY';
+          p.pillEndTime = null;
+          statusChanged = true;
+
+          // Auto-limpiar override TIRED: solo tenía sentido mientras el pill estaba activo.
+          if (appState.manualStates[p.id]) {
+            delete appState.manualStates[p.id];
+            overrideCleaned = true;
+          }
+        } else if (p.pillStatus === 'DEBUFF') {
+          if (prevRemaining > CONFIG.DEBUFF_WINDOW_MS && p.pillRemainingMs <= CONFIG.DEBUFF_WINDOW_MS) {
+            debuffSetChanged = true;
+          }
+        }
+      }
+    }
+
+    if (overrideCleaned) saveManualStates(appState.manualStates);
+
     updateRefreshButton();
-    if (++freshnessTickCount >= CONFIG.FRESHNESS_REFRESH_EVERY_N_TICKS) { freshnessTickCount = 0; updateFreshnessIndicator(); updateApiBanner(); }
-    if ((statusChanged || debuffSetChanged) && appState.smartSort && !WareraPress.isPressing()) renderUsers(); else WareraRender.actualizarTemporizadores();
+
+    if (++freshnessTickCount >= CONFIG.FRESHNESS_REFRESH_EVERY_N_TICKS) {
+      freshnessTickCount = 0;
+      updateFreshnessIndicator();
+      updateApiBanner();
+    }
+
+    if (renderDeferred && !WareraPress.isPressing()) {
+      renderUsers();
+      return;
+    }
+
+    if ((statusChanged || overrideCleaned || (debuffSetChanged && appState.smartSort)) && !WareraPress.isPressing()) {
+      renderUsers();
+    } else {
+      WareraRender.actualizarTemporizadores();
+    }
   }, 1000);
 }
 
-function stopApp() { if (timerLoopId) { clearInterval(timerLoopId); timerLoopId = null; } if (refreshIntervalId) { clearInterval(refreshIntervalId); refreshIntervalId = null; } }
+function stopApp() {
+  if (timerLoopId)       { clearInterval(timerLoopId);       timerLoopId = null; }
+  if (refreshIntervalId) { clearInterval(refreshIntervalId); refreshIntervalId = null; }
+}
 
 async function copyCurrentCapture() {
   const players = getFilteredAndSortedPlayers();
-  if (players.length === 0) { mostrarNotificacion('No hay jugadores.', 2000, 'error'); return; }
-  copyCaptureBtn.disabled = true; const original = copyCaptureBtn.textContent; copyCaptureBtn.textContent = '⏳';
+  if (players.length === 0) {
+    mostrarNotificacion('No hay jugadores para capturar.', 2000, 'error');
+    return;
+  }
+  copyCaptureBtn.disabled = true;
+  copyCaptureBtn.setAttribute('aria-busy', 'true');
+  const original = copyCaptureBtn.innerHTML;
+  copyCaptureBtn.textContent = '⏳';
   try {
     const blob = await WareraCapture.buildCaptureBlob(players);
     if (!blob) throw new Error('toBlob devolvió null');
     const filename = WareraCapture.buildFilename(appState.selectedUnit.toLowerCase());
-    const result = await WareraCapture.deliverBlob(blob, filename); WareraCapture.notifyDeliveryResult(result);
-  } catch (e) { console.error(e); WareraCapture.notifyDeliveryResult({ method: 'error' }); } finally { copyCaptureBtn.disabled = false; copyCaptureBtn.textContent = original; }
+    const result = await WareraCapture.deliverBlob(blob, filename);
+    WareraCapture.notifyDeliveryResult(result);
+  } catch (e) {
+    console.error('Error generando captura:', e);
+    WareraCapture.notifyDeliveryResult({ method: 'error' });
+  } finally {
+    copyCaptureBtn.innerHTML = original;
+    copyCaptureBtn.removeAttribute('aria-busy');
+    copyCaptureBtn.disabled = false;
+  }
 }
 
 async function copyPlayerCapture(player) {
@@ -275,8 +1205,12 @@ async function copyPlayerCapture(player) {
     const blob = await WareraCapture.buildPlayerCaptureBlob(player);
     if (!blob) throw new Error('toBlob devolvió null');
     const filename = WareraCapture.buildFilename(player.name.replace(/\s+/g, '_'));
-    const result = await WareraCapture.deliverBlob(blob, filename); WareraCapture.notifyDeliveryResult(result);
-  } catch (e) { console.error(e); WareraCapture.notifyDeliveryResult({ method: 'error' }); }
+    const result = await WareraCapture.deliverBlob(blob, filename);
+    WareraCapture.notifyDeliveryResult(result);
+  } catch (e) {
+    console.error('Error generando ficha:', e);
+    WareraCapture.notifyDeliveryResult({ method: 'error' });
+  }
 }
 
 window.__warroom = { stopApp, appState };
