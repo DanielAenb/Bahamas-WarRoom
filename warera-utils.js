@@ -1,15 +1,8 @@
-/**
- * Bahamas WarRoom — Utilidades puras.
- * Sin DOM, sin estado, sin API.
- * Expone window.WareraUtils.
- */
 (function () {
   'use strict';
 
   function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    })[c]);
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   }
 
   function formatDmg(n) {
@@ -23,7 +16,7 @@
   function formatTimer(ms) {
     if (!ms || ms <= 0) return '00:00:00';
     const totalSeconds = Math.floor(ms / 1000);
-    const hours   = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+    const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
     const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
     const seconds = String(totalSeconds % 60).padStart(2, '0');
     return `${hours}:${minutes}:${seconds}`;
@@ -36,27 +29,21 @@
     return t + '…';
   }
 
-  // Extraída de app.js (fase 2 — para poder testearla).
-  // Firma: (playersData, selectedMode, smartSort, ordenActual) → nuevo array ordenado.
-
   function getFilteredAndSortedPlayers(playersData, selectedMode, smartSort, ordenActual, tiredPlayers = {}) {
     let list = [...playersData];
     
-    // Filtro por modo
     if (selectedMode !== 'ALL') {
       const modeTarget = String(selectedMode).trim().toUpperCase();
       list = list.filter(p => String(p.modo || '').trim().toUpperCase() === modeTarget);
     }
 
-    // Función auxiliar para saber si está cansado
     const isTired = (p) => !!tiredPlayers[p.id];
 
     if (smartSort) {
-      // En SmartSort, los Tired van al final absoluto
       return list
         .filter(p => p.pillStatus === 'BUFF')
         .sort((a, b) => {
-          if (isTired(a) !== isTired(b)) return isTired(a) ? 1 : -1; // Tired al final
+          if (isTired(a) !== isTired(b)) return isTired(a) ? 1 : -1;
           if (a.isCombatReady !== b.isCombatReady) return b.isCombatReady - a.isCombatReady;
           if (a.pillRemainingMs !== b.pillRemainingMs) return a.pillRemainingMs - b.pillRemainingMs;
           return (b.health + b.hunger * 10) - (a.health + a.hunger * 10);
@@ -73,7 +60,6 @@
 
     const score = (p) => p.health + p.hunger * 10;
     list.sort((a, b) => {
-      // Tired va siempre al fondo, sin importar su estado de pill
       if (isTired(a) !== isTired(b)) return isTired(a) ? 1 : -1;
 
       if (a.pillStatus === 'BUFF'    && b.pillStatus !== 'BUFF')    return -1;
@@ -96,12 +82,6 @@
     });
     return list;
   }
-  
-  window.WareraUtils = {
-    escapeHtml,
-    formatDmg,
-    formatTimer,
-    truncateText,
-    getFilteredAndSortedPlayers
-  };
+
+  window.WareraUtils = { escapeHtml, formatDmg, formatTimer, truncateText, getFilteredAndSortedPlayers };
 })();
