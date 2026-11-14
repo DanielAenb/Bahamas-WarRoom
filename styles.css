@@ -1750,3 +1750,67 @@ input:checked + .slider.damage-slider-secondary {
   background: var(--bg-card);
   border-radius: 2px;
 }
+
+/* ===== MENÚ DE ESTADO (BUFF/TIRED) ===== */
+.status-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.status-trigger {
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s;
+}
+.status-trigger:hover { transform: scale(1.05); }
+
+.status-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  z-index: 100;
+  min-width: 100px;
+  overflow: hidden;
+  display: none;
+}
+
+.status-menu.open { display: flex; flex-direction: column; }
+
+.status-menu button {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: 0.4rem 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.status-menu button:hover { background: rgba(255, 255, 255, 0.05); }
+
+/* Colores para el menú */
+.status-menu .opt-buff { color: #4ade80; }
+.status-menu .opt-tired { color: #f97316; }
+
+/* Estado visual "Tired" */
+.pill-badge.tired {
+  background-color: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.35);
+}
+
+/* Reducir opacidad de la fila/tarjeta completa */
+.tr-tired, .tarjeta-usuario.tired, .mini-card.tired {
+  opacity: 0.45;
+}
+.tr-tired:hover, .tarjeta-usuario.tired:hover, .mini-card.tired:hover {
+  opacity: 0.8;
+}
