@@ -187,16 +187,28 @@
     const avatarUrlProxy = buildProxyUrl(avatarUrl);
 
     // Stats de combate precalculadas por el servidor (ya incluyen gear + buff + rank).
+    // Stats de combate precalculadas por el servidor
     const combat = {
+      // Atributos base y multiplicadores (Extraídos para la simulación épica)
+      attackBase:     user.skills?.attack?.value           ?? 0,
+      precisionBase:  user.skills?.precision?.value        ?? 0,
+      precisionStrategic: user.skills?.precision?.strategic ?? 0,
+      critChanceBase: user.skills?.criticalChance?.value   ?? 0,
+      critDamageBase: user.skills?.criticalDamages?.value  ?? 0,
+      
+      // Multiplicadores del jugador
+      militaryRankPercent: user.skills?.attack?.militaryRankPercent ?? 0,
+      ammoPercent:    user.skills?.attack?.ammoPercent      ?? 10,
+      
+      // Valores totales reales (por si los necesitas para otra cosa)
       attack:         user.skills?.attack?.total           ?? 0,
       precision:      user.skills?.precision?.total        ?? 0,
       criticalChance: user.skills?.criticalChance?.total   ?? 0,
       criticalDamages:user.skills?.criticalDamages?.total  ?? 0,
-      armor:          user.skills?.armor?.total            ?? 0,
-      dodge:          user.skills?.dodge?.total            ?? 0,
+      
+      // Regeneración
       regenHP:        user.skills?.health?.hourlyBarRegen  ?? 0,
-      regenHunger:    user.skills?.hunger?.hourlyBarRegen  ?? 0,
-      militaryRankPercent: user.skills?.attack?.militaryRankPercent ?? 0 // <-- NUEVO
+      regenHunger:    user.skills?.hunger?.hourlyBarRegen  ?? 0
     };
 
     return {
