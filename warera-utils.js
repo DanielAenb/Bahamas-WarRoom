@@ -38,33 +38,44 @@
 
   // Extraída de app.js (fase 2 — para poder testearla).
   // Firma: (playersData, selectedMode, smartSort, ordenActual) → nuevo array ordenado.
-  function getFilteredAndSortedPlayers(playersData, selectedMode, smartSort, ordenActual) {
+
+  function getFilteredAndSortedPlayers(playersData, selectedMode, smartSort, ordenActual, tiredPlayers = {}) {
     let list = [...playersData];
     
-    // Filtro robusto: ignoramos mayúsculas y espacios
+    // Filtro por modo
     if (selectedMode !== 'ALL') {
       const modeTarget = String(selectedMode).trim().toUpperCase();
-      list = list.filter(p => {
-        const playerMode = String(p.modo || '').trim().toUpperCase();
-        return playerMode === modeTarget;
-      });
+      list = list.filter(p => String(p.modo || '').trim().toUpperCase() === modeTarget);
     }
 
+    // Función auxiliar para saber si está cansado
+    const isTired = (p) => !!tiredPlayers[p.id];
+
     if (smartSort) {
-      return list.filter(p => p.pillStatus === 'BUFF').sort((a, b) => {
-        if (a.isCombatReady !== b.isCombatReady) return b.isCombatReady - a.isCombatReady;
-        if (a.pillRemainingMs !== b.pillRemainingMs) return a.pillRemainingMs - b.pillRemainingMs;
-        return (b.health + b.hunger * 10) - (a.health + a.hunger * 10);
-      });
+      // En SmartSort, los Tired van al final absoluto
+      return list
+        .filter(p => p.pillStatus === 'BUFF')
+        .sort((a, b) => {
+          if (isTired(a) !== isTired(b)) return isTired(a) ? 1 : -1; // Tired al final
+          if (a.isCombatReady !== b.isCombatReady) return b.isCombatReady - a.isCombatReady;
+          if (a.pillRemainingMs !== b.pillRemainingMs) return a.pillRemainingMs - b.pillRemainingMs;
+          return (b.health + b.hunger * 10) - (a.health + a.hunger * 10);
+        });
     }
 
     if (ordenActual === 'alfabetico') {
-      list.sort((a, b) => a.name.localeCompare(b.name));
+      list.sort((a, b) => {
+        if (isTired(a) !== isTired(b)) return isTired(a) ? 1 : -1;
+        return a.name.localeCompare(b.name);
+      });
       return list;
     }
 
     const score = (p) => p.health + p.hunger * 10;
     list.sort((a, b) => {
+      // Tired va siempre al fondo, sin importar su estado de pill
+      if (isTired(a) !== isTired(b)) return isTired(a) ? 1 : -1;
+
       if (a.pillStatus === 'BUFF'    && b.pillStatus !== 'BUFF')    return -1;
       if (a.pillStatus !== 'BUFF'    && b.pillStatus === 'BUFF')    return  1;
       if (a.pillStatus === 'STANDBY' && b.pillStatus !== 'STANDBY') return -1;
@@ -85,6 +96,7 @@
     });
     return list;
   }
+  
   window.WareraUtils = {
     escapeHtml,
     formatDmg,
