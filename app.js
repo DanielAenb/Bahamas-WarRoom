@@ -72,7 +72,10 @@ const appState = {
   regenHours: loadRegenHoursState(),  // <-- Asegúrate de que esté aquí
   activeContractId: null,             // <-- Asegúrate de que esté aquí
   battleBonus: loadBattleBonusState(),
-  contractsHudEnabled: localStorage.getItem('warera_contracts_hud_enabled') !== '0'
+  contractsHudEnabled: localStorage.getItem('warera_contracts_hud_enabled') !== '0',
+  tiredPlayers: (() => {
+  try { return JSON.parse(localStorage.getItem('warera_tired_players')) || {}; }
+  catch { return {}; }})
 };
 
 const sidebar             = document.getElementById('apiSidebar');
@@ -305,6 +308,42 @@ function bindUiEvents() {
     });
   });
 
+  // Cerrar menús al hacer clic en cualquier parte
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.status-dropdown')) {
+      document.querySelectorAll('.status-menu.open').forEach(m => m.classList.remove('open'));
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    // 1. Abrir menú
+    const trigger = e.target.closest('[data-toggle-menu]');
+    if (trigger) {
+      e.stopPropagation();
+      const menu = document.getElementById(`menu-${trigger.dataset.toggleMenu}`);
+      document.querySelectorAll('.status-menu.open').forEach(m => { if (m !== menu) m.classList.remove('open'); });
+      if (menu) menu.classList.toggle('open');
+      return;
+    }
+
+    // 2. Seleccionar opción
+    const btn = e.target.closest('[data-set-status]');
+    if (btn) {
+      const playerId = btn.dataset.player;
+      const status = btn.dataset.setStatus;
+
+      if (status === 'tired') {
+        appState.tiredPlayers[playerId] = true;
+      } else {
+        delete appState.tiredPlayers[playerId];
+      }
+
+      localStorage.setItem('warera_tired_players', JSON.stringify(appState.tiredPlayers));
+      document.querySelectorAll('.status-menu.open').forEach(m => m.classList.remove('open'));
+      renderUsers(); // Re-renderiza para aplicar el orden y la opacidad
+    }
+  });
+  
   document.querySelectorAll('[data-order]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('[data-order]').forEach(b => b.classList.remove('active'));
@@ -394,7 +433,9 @@ function bindUiEvents() {
         renderUsers();
       }
     }, 300);
-  });
+  });  
+
+  
 
   // ===== App Switcher (Menú Flotante) =====
   const appSwitcherTrigger = document.getElementById('appSwitcherTrigger');
@@ -857,7 +898,8 @@ function getFilteredAndSortedPlayers() {
     appState.playersData,
     appState.selectedMode,
     appState.smartSort,
-    appState.ordenActual
+    appState.ordenActual,
+    appState.tiredPlayers
   );
 }
 
@@ -951,6 +993,12 @@ function startTimerLoop() {
     const now = Date.now();
 
     for (const p of appState.playersData) {
+
+      if (p.pillStatus === 'DEBUFF' && appState.tiredPlayers[p.id]) {
+      delete appState.tiredPlayers[p.id];
+      localStorage.setItem('warera_tired_players', JSON.stringify(appState.tiredPlayers));
+      }
+      
       if (p.pillStatus !== 'STANDBY' && p.pillEndTime) {
         const prevRemaining = p.pillRemainingMs;
         p.pillRemainingMs = p.pillEndTime - now;
