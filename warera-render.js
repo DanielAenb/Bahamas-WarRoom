@@ -17,14 +17,14 @@
     return manual || player.pillStatus;
   }
 
-  function calcForPlayer(player, state) {
-    return deps.calcDamagePotential(player, {
-      contarRegen: state.contarRegen,
-      battleBonus: state.battleBonus,
-      horas: state.regenHours,
-      effectivePillStatus: effectiveStatusOf(player)
-    });
-  }
+function calcForPlayer(player, state) {
+  return deps.calcDamagePotential(player, {
+    contarRegen: state.contarRegen,
+    battleBonus: state.battleBonus,
+    horas: state.regenHours
+    // ← eliminar effectivePillStatus
+  });
+}
 
   // ===== ESTADOS ESPECIALES (sin cambios) =====
   function renderApiDown() {

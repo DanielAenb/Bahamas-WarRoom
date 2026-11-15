@@ -1,79 +1,83 @@
 /**
  * Bahamas WarRoom — Simulador de daño potencial.
- * Expone window.WareraDamage.calcDamagePotential(player, opts).
- * AHORA SIMULA SET ÉPICO POR DEFECTO
  */
 (function () {
   'use strict';
 
+  // ⚙️ CONFIGURACIÓN: 
+  // true = Asume Arma Épica (Daño Potencial Teórico)
+  // false = Usa el Arma Actual del jugador (Igual al juego)
+  const ASSUME_EPIC_GEAR = true; 
+
+  // Multiplicador interno de daño de Warera (Ataque -> Daño)
+  const WARERA_DAMAGE_MULTIPLIER = 30;
+
+  // Valores del Gear Épico
+  const EPIC_WEAPON_ATK       = 101;
+  const EPIC_WEAPON_CRIT      = 16;
+  const EPIC_HELMET_CRIT_DMG  = 71;
+  const EPIC_GLOVES_PRECISION = 21;
+  
   function calcDamagePotential(player, opts) {
     const c = player.combat || {};
 
-    // ===== 1. Set épico =====
-    const EPIC_WEAPON_ATK        = 101;
-    const EPIC_WEAPON_CRIT       = 16;
-    const EPIC_HELMET_CRIT_DMG   = 71;
-    const EPIC_GLOVES_PRECISION  = 21;
-    const EPIC_ARMOR             = 42;
-    const EPIC_DODGE             = 21;
+    let attack, precision, criticalChance, criticalDamages;
 
-    // ===== 2. Stats con set épico =====
-    const rankMult = 1 + (c.militaryRankPercent || 0) / 100;
-    const ammoMult = 1.10;
+    // ===== 1. Cálculo de Stats (Épico vs Real) =====
+    if (ASSUME_EPIC_GEAR) {
+      // Simulamos Gear Épico (reconstruimos el ataque)
+      const rankMult = 1 + (c.militaryRankPercent || 0) / 100;
+      const ammoMult = 1 + (c.ammoPercent ?? 10) / 100;
+      const pillMult = player.pillStatus === 'BUFF' ? 1.6 : (player.pillStatus === 'DEBUFF' ? 0.4 : 1.0);
 
-    // NUEVO: el estado efectivo (manual override) manda si existe.
-    const pillState = opts.effectivePillStatus || player.pillStatus;
-    const pillMult  = pillState === 'BUFF'   ? 1.6
-                    : pillState === 'DEBUFF' ? 0.4
-                    : 1.0;   // TIRED / STANDBY / undefined → 1.0
-
-    const attack           = (c.attackBase + EPIC_WEAPON_ATK) * rankMult * ammoMult * pillMult;
-    const precision        = c.precisionBase + EPIC_GLOVES_PRECISION + (c.precisionStrategic || 0);
-    const criticalChance   = c.critChanceBase + EPIC_WEAPON_CRIT;
-    const criticalDamages  = c.critDamageBase + EPIC_HELMET_CRIT_DMG;
-
-    // ===== 3. Horas =====
-    const horasBuff = Math.max(0, (player.pillRemainingMs || 0) / 3600000);
-    let horasBase;
-    if (horasBuff > 0) {
-      horasBase = opts.horas !== undefined ? Math.min(opts.horas, horasBuff) : horasBuff;
+      attack = (c.attackBase + EPIC_WEAPON_ATK) * rankMult * ammoMult * pillMult;
+      precision = c.precisionBase + EPIC_GLOVES_PRECISION + (c.precisionStrategic || 0);
+      criticalChance = c.critChanceBase + EPIC_WEAPON_CRIT;
+      criticalDamages = c.critDamageBase + EPIC_HELMET_CRIT_DMG;
     } else {
-      horasBase = opts.horas !== undefined ? opts.horas : 8;
+      // Usamos los Totales Reales del API
+      attack = c.attack || c.attackBase || 0;
+      precision = c.precision || 100;
+      criticalChance = c.criticalChance || 0;
+      criticalDamages = c.criticalDamages || 0;
     }
-    const horas = Math.floor(horasBase);
 
-    // ===== 4. Daño por golpe =====
-    let prc = precision / 100;
+    // ===== 2. Daño por Golpe (con multiplicador de Warera) =====
+    const prc = precision / 100;
     const cc = criticalChance / 100;
     const cd = criticalDamages / 100;
 
-    const finalAttack   = attack + 4 * Math.max(0, (prc - 1) * 100);
+    const finalAttack = attack + 4 * Math.max(0, (prc - 1) * 100);
     const extraCritMult = 4 * Math.max(0, (cc - 1) * 100);
-    const h             = Math.min(1, prc);
-    const ccCap         = Math.min(1, cc);
+    const h = Math.min(1, prc);
+    const ccCap = Math.min(1, cc);
 
-    const dmgPerHit = finalAttack * h * (1 + ccCap * (cd + 0.01 * extraCritMult))
-                    + (finalAttack / 2) * (1 - h);
+    // Aquí aplicamos el multiplicador de 30x que tiene Warera internamente
+    const dmgPerHit = (finalAttack * h * (1 + ccCap * (cd + 0.01 * extraCritMult))
+                    + (finalAttack / 2) * (1 - h)) * WARERA_DAMAGE_MULTIPLIER;
 
-    // ===== 5. Vida / hambre =====
-    const healthMax = player.healthMax || 100;
-    const y = Math.max(0, player.health || 0);
+    // ===== 3. Hambre (Ataques disponibles) =====
     const j = Math.max(0, player.hunger || 0);
+    // Regeneración de hambre: 20% de la barra por hora
+    const regen = (player.hungerMax || 10) * 0.20 * (opts.horas || 8);
+    const P = Math.max(0, Math.floor(opts.contarRegen ? j + regen : j));
 
-    const k = opts.contarRegen ? Math.max(0, (c.regenHP || 0) * horas) : 0;
-    const P = Math.max(0, Math.floor(opts.contarRegen ? j + (c.regenHunger || 0) * horas : j));
+    const nAttacks = P; // 1 punto de hambre = 1 ataque
 
-    // ===== 6. Mitigación =====
-    const S = EPIC_ARMOR;
-    const H = EPIC_DODGE;
-    const M = 10 * (1 - S / (S + 40)) * (1 - H / (H + 40));
+    // ===== 4. Battle Bonus =====
+    const bonusMult = 1 + (opts.battleBonus || 0) / 100;
 
-    const nAttacks = M > 0 ? (y + k + 0.2 * P * healthMax) / M : 0;
+    // ===== 5. Daño Total =====
+    const dmgTotal = dmgPerHit * nAttacks * bonusMult;
 
-    // ===== 7. Total =====
-    const dmgTotal = dmgPerHit * nAttacks * (1 + (opts.battleBonus || 0) / 100);
-
-    return { dmgTotal, dmgPerHit, nAttacks, horas, hpEfec: y + k, foodEfec: P };
+    return {
+      dmgTotal,
+      dmgPerHit,
+      nAttacks,
+      horas: opts.horas || 8,
+      hpEfec: Math.max(0, player.health || 0) + (opts.contarRegen ? (c.regenHP || 0) * (opts.horas || 8) : 0),
+      foodEfec: P
+    };
   }
 
   window.WareraDamage = { calcDamagePotential };
