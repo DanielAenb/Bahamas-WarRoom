@@ -4,15 +4,9 @@
 (function () {
   'use strict';
 
-  // ⚙️ CONFIGURACIÓN: 
-  // true = Asume Arma Épica (Daño Potencial Teórico)
-  // false = Usa el Arma Actual del jugador (Igual al juego)
   const ASSUME_EPIC_GEAR = true; 
-
-  // Multiplicador interno de daño de Warera (Ataque -> Daño)
   const WARERA_DAMAGE_MULTIPLIER = 30;
 
-  // Valores del Gear Épico
   const EPIC_WEAPON_ATK       = 101;
   const EPIC_WEAPON_CRIT      = 16;
   const EPIC_HELMET_CRIT_DMG  = 71;
@@ -25,7 +19,6 @@
 
     // ===== 1. Cálculo de Stats (Épico vs Real) =====
     if (ASSUME_EPIC_GEAR) {
-      // Simulamos Gear Épico (reconstruimos el ataque)
       const rankMult = 1 + (c.militaryRankPercent || 0) / 100;
       const ammoMult = 1 + (c.ammoPercent ?? 10) / 100;
       const pillMult = player.pillStatus === 'BUFF' ? 1.6 : (player.pillStatus === 'DEBUFF' ? 0.4 : 1.0);
@@ -35,14 +28,32 @@
       criticalChance = c.critChanceBase + EPIC_WEAPON_CRIT;
       criticalDamages = c.critDamageBase + EPIC_HELMET_CRIT_DMG;
     } else {
-      // Usamos los Totales Reales del API
       attack = c.attack || c.attackBase || 0;
       precision = c.precision || 100;
       criticalChance = c.criticalChance || 0;
       criticalDamages = c.criticalDamages || 0;
     }
 
-    // ===== 2. Daño por Golpe (con multiplicador de Warera) =====
+    // ===== 2. Horas de Regeneración (Limitadas por el Buff) =====
+    const rawHours = Math.max(0, (player.pillRemainingMs || 0) / 3_600_000);
+    const sliderHours = opts.horas !== undefined ? opts.horas : 8;
+    let horas = 0;
+
+    if (rawHours > 0) {
+        // Si hay buff activo, el límite es el tiempo del buff (redondeado hacia abajo)
+        let buffHours = Math.floor(rawHours);
+        
+        // Si le queda menos de 1 hora de buff, se cuenta como 1 hora completa
+        if (buffHours === 0) buffHours = 1; 
+        
+        // El slider manda, pero nunca puede superar las horas de buff reales
+        horas = Math.min(sliderHours, buffHours);
+    } else {
+        // Sin buff (Standby), usamos el slider directamente
+        horas = sliderHours;
+    }
+
+    // ===== 3. Daño por Golpe =====
     const prc = precision / 100;
     const cc = criticalChance / 100;
     const cd = criticalDamages / 100;
@@ -52,30 +63,32 @@
     const h = Math.min(1, prc);
     const ccCap = Math.min(1, cc);
 
-    // Aquí aplicamos el multiplicador de 30x que tiene Warera internamente
     const dmgPerHit = (finalAttack * h * (1 + ccCap * (cd + 0.01 * extraCritMult))
                     + (finalAttack / 2) * (1 - h)) * WARERA_DAMAGE_MULTIPLIER;
 
-    // ===== 3. Hambre (Ataques disponibles) =====
+    // ===== 4. Hambre (Ataques disponibles) =====
     const j = Math.max(0, player.hunger || 0);
-    // Regeneración de hambre: 20% de la barra por hora
-    const regen = (player.hungerMax || 10) * 0.20 * (opts.horas || 8);
-    const P = Math.max(0, Math.floor(opts.contarRegen ? j + regen : j));
+    // Usamos la regeneración de hambre real del API, o el 20% de la barra como fallback
+    const regenHunger = c.regenHunger !== undefined ? c.regenHunger : (player.hungerMax || 10) * 0.2;
+    const P = Math.max(0, Math.floor(opts.contarRegen ? j + (regenHunger * horas) : j));
 
-    const nAttacks = P; // 1 punto de hambre = 1 ataque
+    const nAttacks = P; 
 
-    // ===== 4. Battle Bonus =====
+    // ===== 5. Battle Bonus =====
     const bonusMult = 1 + (opts.battleBonus || 0) / 100;
 
-    // ===== 5. Daño Total =====
+    // ===== 6. Daño Total =====
     const dmgTotal = dmgPerHit * nAttacks * bonusMult;
 
+    // ===== 7. Retorno =====
+    const regenHP = c.regenHP !== undefined ? c.regenHP : (player.healthMax || 100) * 0.2;
+    
     return {
       dmgTotal,
       dmgPerHit,
       nAttacks,
-      horas: opts.horas || 8,
-      hpEfec: Math.max(0, player.health || 0) + (opts.contarRegen ? (c.regenHP || 0) * (opts.horas || 8) : 0),
+      horas,
+      hpEfec: Math.max(0, player.health || 0) + (opts.contarRegen ? regenHP * horas : 0),
       foodEfec: P
     };
   }
